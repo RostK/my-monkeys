@@ -1,0 +1,9 @@
+{
+  "name": "research-tools",
+  "displayName": "Research Tools",
+  "version": "1.0.0",
+  "description": "Read-only researcher agent that finds grounded answers inside your codebase or on the web and returns cited, structured reports — never writes or mutates anything.",
+  "author": { "name": "RostK", "email": "rkaniuchenko@gmail.com" },
+  "keywords": ["research", "read-only", "investigation", "citations"],
+  "license": "MIT"
+}

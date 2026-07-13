@@ -5,8 +5,38 @@
     "email": "rkaniuchenko@gmail.com"
   },
   "description": "Marketplace for my-monkeys Claude Code plugins",
-  "metadata": {
-    "pluginRoot": "./plugins"
-  },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "engineering-paved-path",
+      "source": "./plugins/engineering-paved-path",
+      "version": "1.0.0",
+      "description": "Reusable engineering skills: React, Next.js, Fastify, architecture, testing, security, TypeScript, Zod, Drizzle, PostgreSQL, insights."
+    },
+    {
+      "name": "research-tools",
+      "source": "./plugins/research-tools",
+      "version": "1.0.0",
+      "description": "Read-only researcher agent for grounded, cited investigation of code or the web."
+    },
+    {
+      "name": "architecture-review",
+      "source": "./plugins/architecture-review",
+      "version": "1.0.0",
+      "description": "Generalized architecture-reviewer agent for structural / topology reviews.",
+      "dependencies": [
+        { "name": "engineering-paved-path", "version": "^1.0.0" }
+      ]
+    },
+    {
+      "name": "sdd-engineering",
+      "source": "./plugins/sdd-engineering",
+      "version": "1.0.0",
+      "description": "Spec-Driven Development engineering workflow: spec to plan to implement to verify to retro.",
+      "dependencies": [
+        { "name": "engineering-paved-path", "version": "^1.0.0" },
+        { "name": "research-tools", "version": "^1.0.0" },
+        { "name": "architecture-review", "version": "^1.0.0" }
+      ]
+    }
+  ]
 }
