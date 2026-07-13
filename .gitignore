@@ -1,0 +1,15 @@
+# IDE / editor
+.idea/
+
+# Dependencies
+node_modules/
+
+# Build output & CI-generated artifacts (see docs/SPEC-marketplace-ui.md §11)
+dist/
+apps/web/dist/
+apps/web/public/index.json
+apps/web/public/embeddings.json
+
+# OS
+.DS_Store
+Thumbs.db
