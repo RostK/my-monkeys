@@ -1,0 +1,9 @@
+{
+  "name": "engineering-paved-path",
+  "displayName": "Engineering Paved Path",
+  "version": "1.0.0",
+  "description": "Reusable engineering skills — React, Next.js, Fastify, onion & frontend architecture, testing, security, TypeScript, Zod, Drizzle ORM, PostgreSQL, and engineering-insights capture. The paved-path base other plugins depend on.",
+  "author": { "name": "RostK", "email": "rkaniuchenko@gmail.com" },
+  "keywords": ["react", "nextjs", "fastify", "architecture", "testing", "security", "typescript", "zod", "drizzle", "postgresql"],
+  "license": "MIT"
+}
