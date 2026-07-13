@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev-server.mjs", "--port", "5173", "--root", "preview"],
+      "port": 5173
+    }
+  ]
+}
