@@ -1,0 +1,28 @@
+{
+  "name": "my-monkeys-marketplace-preview",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Design preview of the my-monkeys marketplace UI (React + Vite).",
+  "scripts": {
+    "index": "node scripts/build-index.mjs",
+    "predev": "npm run index",
+    "dev": "vite",
+    "prebuild": "npm run index",
+    "build": "vite build",
+    "preview": "vite preview",
+    "favicons": "node scripts/gen-favicons.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "gray-matter": "^4.0.3",
+    "sharp": "^0.35.3",
+    "vite": "^6.0.7"
+  }
+}
