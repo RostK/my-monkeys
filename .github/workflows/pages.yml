@@ -1,8 +1,8 @@
 name: Deploy preview to GitHub Pages
 
-# Publishes ONLY the preview/ folder (the marketplace UI design preview) to
-# GitHub Pages. The marketplace catalog itself (marketplace.json, plugins/) is
-# never included in the published site.
+# Builds the React/Vite preview app (preview/) and publishes ONLY its build
+# output (preview/dist) to GitHub Pages. The marketplace catalog itself
+# (marketplace.json, plugins/) is never included in the published site.
 
 on:
   push:
@@ -23,14 +23,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: preview
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: preview/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -39,11 +52,18 @@ jobs:
           # so no manual Settings step is needed once the repo is public.
           enablement: true
 
-      - name: Upload preview/ as the Pages artifact
+      - name: Upload build output
         uses: actions/upload-pages-artifact@v3
         with:
-          path: preview
+          path: preview/dist
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
