@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { MARKETPLACE } from "../data.js";
-import { renderMarkdown } from "../lib/markdown.js";
 import { TypeIcon, CopyIcon, CloseIcon, GithubIcon } from "../icons.jsx";
 import { t } from "../strings.js";
 
@@ -64,7 +65,16 @@ export default function DetailModal({ artifact: a, onClose, onInstall }) {
           </a>
         </div>
 
-        <div className="modal-body" dangerouslySetInnerHTML={{ __html: renderMarkdown(a.body) }} />
+        <div className="modal-body">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+            }}
+          >
+            {a.body}
+          </ReactMarkdown>
+        </div>
       </div>
     </div>
   );

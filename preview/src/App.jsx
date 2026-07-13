@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { DATA, MARKETPLACE } from "./data.js";
 import { computeResults } from "./lib/search.js";
 import { t } from "./strings.js";
@@ -6,8 +6,10 @@ import Header from "./components/Header.jsx";
 import SearchBar from "./components/SearchBar.jsx";
 import Filters from "./components/Filters.jsx";
 import Card from "./components/Card.jsx";
-import DetailModal from "./components/DetailModal.jsx";
 import Toast from "./components/Toast.jsx";
+
+// The detail modal pulls in react-markdown; load it only when a card is opened.
+const DetailModal = lazy(() => import("./components/DetailModal.jsx"));
 
 const SORTS = ["relevance", "newest", "az"];
 
@@ -171,7 +173,11 @@ export default function App() {
         </div>
       </div>
 
-      {openArtifact && <DetailModal artifact={openArtifact} onClose={() => setOpenId(null)} onInstall={copyInstall} />}
+      {openArtifact && (
+        <Suspense fallback={null}>
+          <DetailModal artifact={openArtifact} onClose={() => setOpenId(null)} onInstall={copyInstall} />
+        </Suspense>
+      )}
       <Toast message={toastMsg} />
     </>
   );

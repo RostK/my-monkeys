@@ -11,7 +11,7 @@ export default function Card({ artifact: a, onOpen, onInstall }) {
           <TypeIcon type={a.type} />
           {a.type}
         </span>
-        <span className="tag-hint">#{a.tags[0]}</span>
+        {a.tags[0] && <span className="tag-hint">#{a.tags[0]}</span>}
       </div>
       <h3 className={isCmd ? "cmd-name" : undefined}>{a.displayName}</h3>
       <p>{a.description}</p>

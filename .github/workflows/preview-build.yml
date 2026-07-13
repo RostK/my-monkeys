@@ -9,6 +9,8 @@ on:
   pull_request:
     paths:
       - "preview/**"
+      - "plugins/**"
+      - ".claude-plugin/marketplace.json"
       - ".github/workflows/preview-build.yml"
   push:
     # Feature branches only; pushes to main are built + deployed by pages.yml.
@@ -16,6 +18,8 @@ on:
       - main
     paths:
       - "preview/**"
+      - "plugins/**"
+      - ".claude-plugin/marketplace.json"
       - ".github/workflows/preview-build.yml"
   workflow_dispatch:
 
@@ -32,6 +36,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history so the indexer can read each artifact's last-commit date.
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
