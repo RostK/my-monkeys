@@ -32,7 +32,7 @@ export default function DetailModal({ artifact: a, onClose, onInstall }) {
               <TypeIcon type={a.type} />
               {a.type}
             </span>
-            <span className="tag-hint" style={{ marginLeft: 8 }}>
+            <span className="tag-hint" style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <TypeIcon type="plugin" /> {a.plugin}
             </span>
             <h2 id="mTitle" className={a.type === "command" ? "mono" : undefined}>
