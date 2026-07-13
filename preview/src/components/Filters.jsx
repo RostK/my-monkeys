@@ -1,5 +1,6 @@
 import { TYPES, TYPE_COUNTS, PLUGINS, PLUGIN_COUNTS, ALL_TAGS } from "../data.js";
 import { TypeIcon, CheckIcon, DotIcon } from "../icons.jsx";
+import { t } from "../strings.js";
 
 function Row({ on, onToggle, radio, box, label, count }) {
   return (
@@ -27,7 +28,7 @@ export default function Filters({ types, plugins, tags, toggle, reset }) {
   return (
     <aside>
       <div className="facet">
-        <p className="facet-title">Type</p>
+        <p className="facet-title">{t.filters.type}</p>
         {TYPES.map((t) => (
           <Row
             key={t}
@@ -48,7 +49,7 @@ export default function Filters({ types, plugins, tags, toggle, reset }) {
       </div>
 
       <div className="facet">
-        <p className="facet-title">Plugin</p>
+        <p className="facet-title">{t.filters.plugin}</p>
         {Object.keys(PLUGINS).map((p) => (
           <Row
             key={p}
@@ -63,7 +64,7 @@ export default function Filters({ types, plugins, tags, toggle, reset }) {
       </div>
 
       <div className="facet">
-        <p className="facet-title">Tags</p>
+        <p className="facet-title">{t.filters.tags}</p>
         <div className="chips">
           {ALL_TAGS.map((t) => (
             <button key={t} className={"chip" + (tags.has(t) ? " on" : "")} onClick={() => toggle("tags", t)}>
@@ -74,7 +75,7 @@ export default function Filters({ types, plugins, tags, toggle, reset }) {
       </div>
 
       <button className="reset" onClick={reset}>
-        Reset filters
+        {t.filters.reset}
       </button>
     </aside>
   );

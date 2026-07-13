@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { MARKETPLACE } from "../data.js";
 import { renderMarkdown } from "../lib/markdown.js";
 import { TypeIcon, CopyIcon, CloseIcon, GithubIcon } from "../icons.jsx";
+import { t } from "../strings.js";
 
 export default function DetailModal({ artifact: a, onClose, onInstall }) {
   const closeRef = useRef(null);
@@ -44,7 +45,7 @@ export default function DetailModal({ artifact: a, onClose, onInstall }) {
               ))}
             </div>
           </div>
-          <button className="icon-btn" aria-label="Close" ref={closeRef} onClick={onClose}>
+          <button className="icon-btn" aria-label={t.modal.close} ref={closeRef} onClick={onClose}>
             <CloseIcon />
           </button>
         </div>
@@ -55,11 +56,11 @@ export default function DetailModal({ artifact: a, onClose, onInstall }) {
           </div>
           <button className="btn btn-primary" style={{ flex: "none", padding: "9px 14px" }} onClick={() => onInstall(a.installName)}>
             <CopyIcon />
-            Copy
+            {t.modal.copy}
           </button>
           <a className="btn btn-ghost" style={{ flex: "none", padding: "9px 14px" }} href={a.githubUrl} target="_blank" rel="noopener noreferrer">
             <GithubIcon />
-            GitHub
+            {t.modal.github}
           </a>
         </div>
 

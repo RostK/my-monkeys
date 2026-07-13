@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DATA, MARKETPLACE } from "./data.js";
 import { computeResults } from "./lib/search.js";
+import { t } from "./strings.js";
 import Header from "./components/Header.jsx";
 import SearchBar from "./components/SearchBar.jsx";
 import Filters from "./components/Filters.jsx";
@@ -118,7 +119,7 @@ export default function App() {
 
   const copyInstall = useCallback((plugin) => {
     const cmd = "claude plugin install " + plugin + "@" + MARKETPLACE;
-    const done = () => setToastMsg("Copied: " + cmd);
+    const done = () => setToastMsg(t.toast.copiedPrefix + " " + cmd);
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(cmd).then(done, () => {
         legacyCopy(cmd);
@@ -140,14 +141,14 @@ export default function App() {
           <main>
             <div className="results-head">
               <div className="results-count">
-                <b>{results.length}</b> {results.length === 1 ? "result" : "results"}
+                <b>{results.length}</b> {results.length === 1 ? t.results.one : t.results.many}
               </div>
               <div className="sort">
-                <label htmlFor="sort">Sort</label>
+                <label htmlFor="sort">{t.results.sort}</label>
                 <select id="sort" value={sort} onChange={(e) => setSort(e.target.value)}>
-                  <option value="relevance">Relevance</option>
-                  <option value="newest">Newest</option>
-                  <option value="az">A–Z</option>
+                  <option value="relevance">{t.results.sortRelevance}</option>
+                  <option value="newest">{t.results.sortNewest}</option>
+                  <option value="az">{t.results.sortAz}</option>
                 </select>
               </div>
             </div>
@@ -155,8 +156,8 @@ export default function App() {
             {results.length === 0 ? (
               <div className="grid">
                 <div className="empty">
-                  <h3>No matches</h3>
-                  <p>Try a different search, or reset the filters.</p>
+                  <h3>{t.results.emptyTitle}</h3>
+                  <p>{t.results.emptyHint}</p>
                 </div>
               </div>
             ) : (

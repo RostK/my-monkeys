@@ -1,4 +1,5 @@
 import { SearchIcon } from "../icons.jsx";
+import { t } from "../strings.js";
 
 export default function SearchBar({ q, setQ, mode, setMode }) {
   return (
@@ -9,18 +10,18 @@ export default function SearchBar({ q, setQ, mode, setMode }) {
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search skills, commands, agents…"
+          placeholder={t.search.placeholder}
           autoComplete="off"
-          aria-label="Search the marketplace"
+          aria-label={t.search.ariaLabel}
         />
-        <div className="toggle" title="Smart = semantic ranking · Exact = keyword only">
-          <span>search</span>
+        <div className="toggle" title={t.search.modeHint}>
+          <span>{t.search.label}</span>
           <div className="seg">
             <button className={mode === "smart" ? "on" : ""} onClick={() => setMode("smart")}>
-              Smart
+              {t.search.smart}
             </button>
             <button className={mode === "exact" ? "on" : ""} onClick={() => setMode("exact")}>
-              Exact
+              {t.search.exact}
             </button>
           </div>
         </div>

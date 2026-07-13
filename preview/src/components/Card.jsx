@@ -1,5 +1,6 @@
 import { fmtAge } from "../data.js";
 import { TypeIcon, CopyIcon, ArrowIcon } from "../icons.jsx";
+import { t } from "../strings.js";
 
 export default function Card({ artifact: a, onOpen, onInstall }) {
   const isCmd = a.type === "command";
@@ -20,7 +21,9 @@ export default function Card({ artifact: a, onOpen, onInstall }) {
           {a.plugin}
         </span>
         <span>·</span>
-        <span>updated {fmtAge(a.days)}</span>
+        <span>
+          {t.card.updatedPrefix} {fmtAge(a.days)}
+        </span>
       </div>
       <div className="card-actions">
         <button
@@ -31,7 +34,7 @@ export default function Card({ artifact: a, onOpen, onInstall }) {
           }}
         >
           <CopyIcon />
-          Install
+          {t.card.install}
         </button>
         <button
           className="btn btn-ghost"
@@ -40,7 +43,7 @@ export default function Card({ artifact: a, onOpen, onInstall }) {
             onOpen(a.id);
           }}
         >
-          Details
+          {t.card.details}
           <ArrowIcon />
         </button>
       </div>

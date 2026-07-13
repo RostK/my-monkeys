@@ -1,9 +1,10 @@
 import { DATA, PLUGINS, OWNER, REPO } from "../data.js";
 import { GithubIcon, SunIcon, MoonIcon } from "../icons.jsx";
+import { t } from "../strings.js";
 
 export default function Header({ theme, onToggleTheme }) {
   const pluginCount = Object.keys(PLUGINS).length;
-  const nextTheme = theme === "dark" ? "light" : "dark";
+  const themeLabel = theme === "dark" ? t.header.switchToLight : t.header.switchToDark;
   return (
     <header className="top">
       <div className="wrap top-inner">
@@ -15,25 +16,25 @@ export default function Header({ theme, onToggleTheme }) {
               <path d="M4 17l8 4 8-4" />
             </svg>
           </div>
-          <span className="brand-name">my-monkeys</span>
-          <span className="brand-sub">marketplace</span>
+          <span className="brand-name">{t.brand.name}</span>
+          <span className="brand-sub">{t.brand.tag}</span>
         </div>
         <div className="top-spacer" />
         <div className="stats">
           <span>
-            <b>{DATA.length}</b> artifacts
+            <b>{DATA.length}</b> {t.header.artifacts}
           </span>
           <span className="dot">·</span>
           <span>
-            <b>{pluginCount}</b> plugins
+            <b>{pluginCount}</b> {t.header.plugins}
           </span>
         </div>
-        <button className="theme-toggle" onClick={onToggleTheme} aria-label={`Switch to ${nextTheme} theme`} title={`Switch to ${nextTheme} theme`}>
+        <button className="theme-toggle" onClick={onToggleTheme} aria-label={themeLabel} title={themeLabel}>
           {theme === "dark" ? <SunIcon /> : <MoonIcon />}
         </button>
         <a className="gh-link" href={`https://github.com/${OWNER}/${REPO}`} target="_blank" rel="noopener noreferrer">
           <GithubIcon />
-          GitHub
+          {t.header.github}
         </a>
       </div>
     </header>
