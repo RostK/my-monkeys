@@ -1,8 +1,9 @@
 import { DATA, PLUGINS, OWNER, REPO } from "../data.js";
 import { GithubIcon, SunIcon, MoonIcon } from "../icons.jsx";
 import { t } from "../strings.js";
+import WhatsNew from "./WhatsNew.jsx";
 
-export default function Header({ theme, onToggleTheme }) {
+export default function Header({ theme, onToggleTheme, recent, onOpenArtifact }) {
   const pluginCount = Object.keys(PLUGINS).length;
   const themeLabel = theme === "dark" ? t.header.switchToLight : t.header.switchToDark;
   return (
@@ -31,6 +32,7 @@ export default function Header({ theme, onToggleTheme }) {
           <span className="brand-sub">{t.brand.tag}</span>
         </div>
         <div className="top-spacer" />
+        <WhatsNew items={recent} onOpen={onOpenArtifact} />
         <div className="stats">
           <span>
             <b>{DATA.length}</b> {t.header.artifacts}

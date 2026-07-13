@@ -6,7 +6,6 @@ import Header from "./components/Header.jsx";
 import SearchBar from "./components/SearchBar.jsx";
 import Filters from "./components/Filters.jsx";
 import Card from "./components/Card.jsx";
-import WhatsNew from "./components/WhatsNew.jsx";
 import Toast from "./components/Toast.jsx";
 
 // The detail modal pulls in react-markdown; load it only when a card is opened.
@@ -144,19 +143,17 @@ export default function App() {
     else (legacyCopy(url), done());
   }, []);
 
-  // Most recently added / updated artifacts (by git date) for the What's New section.
-  const recent = useMemo(() => [...DATA].sort((a, b) => a.days - b.days || a.displayName.localeCompare(b.displayName)).slice(0, 5), []);
-  const isDefaultView = !q && !types.size && !plugins.size && !tags.size;
+  // Most recently added / updated artifacts (by git date) for the What's New dropdown.
+  const recent = useMemo(() => [...DATA].sort((a, b) => a.days - b.days || a.displayName.localeCompare(b.displayName)).slice(0, 8), []);
 
   return (
     <>
-      <Header theme={theme} onToggleTheme={toggleTheme} />
+      <Header theme={theme} onToggleTheme={toggleTheme} recent={recent} onOpenArtifact={setOpenId} />
       <div className="wrap">
         <SearchBar q={q} setQ={setQ} mode={mode} setMode={setMode} />
         <div className="layout">
           <Filters types={types} plugins={plugins} tags={tags} toggle={toggle} reset={reset} />
           <main>
-            {isDefaultView && <WhatsNew items={recent} onOpen={setOpenId} />}
             <div className="results-head">
               <div className="results-count">
                 <b>{results.length}</b> {results.length === 1 ? t.results.one : t.results.many}

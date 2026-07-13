@@ -528,34 +528,59 @@ aside .facet {
   font-weight: 600;
 }
 
-/* ---------- What's new ---------- */
-.whatsnew {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, var(--panel)), var(--panel));
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px 18px 12px;
-  margin-bottom: 22px;
-}
-.wn-head {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  margin-bottom: 10px;
-}
-.wn-spark {
-  color: var(--accent-2);
-  align-self: center;
+/* ---------- What's new (header button + modal) ---------- */
+.wn-btn {
+  position: relative;
   display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12.5px;
+  transition: border-color 0.15s, color 0.15s;
 }
-.wn-head h2 {
+.wn-btn:hover {
+  border-color: var(--accent-line);
+  color: var(--text);
+}
+.wn-btn svg {
+  color: var(--accent-2);
+}
+.wn-dot {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.wn-modal {
+  width: min(540px, 100%);
+}
+.wn-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--accent-2);
+}
+.wn-modal-title h2 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 18px;
+  color: var(--text);
   letter-spacing: -0.01em;
 }
-.wn-sub {
+.wn-modal-sub {
   color: var(--text-mut);
   font-size: 12.5px;
+  margin-top: 4px;
+}
+.wn-modal-body {
+  padding: 10px 14px 16px;
 }
 .wn-list {
   display: flex;
@@ -567,7 +592,6 @@ aside .facet {
   justify-content: space-between;
   gap: 12px;
   padding: 9px 10px;
-  margin: 0 -10px;
   border: none;
   background: transparent;
   border-radius: 9px;
@@ -619,6 +643,16 @@ aside .facet {
   font-size: 12px;
   white-space: nowrap;
 }
+.wn-ver {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
 .wn-badge {
   font-size: 10px;
   font-weight: 600;
@@ -628,9 +662,10 @@ aside .facet {
   background: var(--accent-soft);
   border: 1px solid var(--accent-line);
   border-radius: 999px;
-  padding: 2px 7px;
+  padding: 1px 6px;
 }
-@media (max-width: 560px) {
+@media (max-width: 620px) {
+  .wn-btn-label,
   .wn-plugin {
     display: none;
   }
@@ -679,6 +714,17 @@ aside .facet {
   margin: 6px 0 0;
   font-size: 21px;
   letter-spacing: -0.02em;
+}
+.modal-ver {
+  margin-left: 8px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 1px 6px;
+  vertical-align: middle;
 }
 .modal-head h2.mono {
   font-family: var(--mono);

@@ -101,6 +101,7 @@ for (const entry of marketplace.plugins || []) {
   const manifest = existsSync(manifestPath) ? readJson(manifestPath) : {};
   const pluginName = manifest.name || entry.name;
   const keywords = Array.isArray(manifest.keywords) ? manifest.keywords.map(String) : [];
+  const pluginVersion = manifest.version || entry.version || null;
   const pluginDisplay = manifest.displayName || titleCase(pluginName);
   const pluginDesc = oneLine(manifest.description || entry.description);
 
@@ -120,6 +121,7 @@ for (const entry of marketplace.plugins || []) {
     path: rel(existsSync(manifestPath) ? manifestPath : pluginDir),
     githubUrl: `https://github.com/${OWNER}/${REPO}/blob/${BRANCH}/${rel(existsSync(manifestPath) ? manifestPath : pluginDir)}`,
     installName: pluginName,
+    version: pluginVersion,
     updatedAt: gitDate(existsSync(manifestPath) ? manifestPath : pluginDir),
     body: pluginBody,
   });
@@ -141,6 +143,7 @@ for (const entry of marketplace.plugins || []) {
       path: rel(file),
       githubUrl: `https://github.com/${OWNER}/${REPO}/blob/${BRANCH}/${rel(file)}`,
       installName: pluginName,
+      version: fm.version ? String(fm.version) : pluginVersion,
       updatedAt: gitDate(file),
       body: content.trim(),
     });
@@ -162,6 +165,7 @@ for (const entry of marketplace.plugins || []) {
       path: rel(file),
       githubUrl: `https://github.com/${OWNER}/${REPO}/blob/${BRANCH}/${rel(file)}`,
       installName: pluginName,
+      version: fm.version ? String(fm.version) : pluginVersion,
       updatedAt: gitDate(file),
       body: content.trim(),
     });
@@ -183,6 +187,7 @@ for (const entry of marketplace.plugins || []) {
       path: rel(file),
       githubUrl: `https://github.com/${OWNER}/${REPO}/blob/${BRANCH}/${rel(file)}`,
       installName: pluginName,
+      version: fm.version ? String(fm.version) : pluginVersion,
       updatedAt: gitDate(file),
       body: content.trim(),
     });
