@@ -8,6 +8,15 @@
       name="description"
       content="Design preview of the my-monkeys plugin marketplace UI — search and browse skills, commands, agents and plugins."
     />
+    <script>
+      // Apply the saved theme before first paint (default: dark). Avoids a flash.
+      try {
+        document.documentElement.setAttribute(
+          "data-theme",
+          localStorage.getItem("mm-theme") === "light" ? "light" : "dark"
+        );
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

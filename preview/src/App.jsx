@@ -48,6 +48,24 @@ export default function App() {
   const [tags, setTags] = useState(init.tags);
   const [openId, setOpenId] = useState(null);
   const [toastMsg, setToastMsg] = useState(null);
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem("mm-theme") === "light" ? "light" : "dark";
+    } catch {
+      return "dark";
+    }
+  });
+
+  // Apply + persist the theme (dark is the default).
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      localStorage.setItem("mm-theme", theme);
+    } catch {
+      /* ignore */
+    }
+  }, [theme]);
+  const toggleTheme = useCallback(() => setTheme((t) => (t === "dark" ? "light" : "dark")), []);
 
   const state = useMemo(() => ({ q, mode, sort, types, plugins, tags }), [q, mode, sort, types, plugins, tags]);
   const results = useMemo(() => computeResults(DATA, state), [state]);
@@ -114,7 +132,7 @@ export default function App() {
 
   return (
     <>
-      <Header />
+      <Header theme={theme} onToggleTheme={toggleTheme} />
       <div className="wrap">
         <SearchBar q={q} setQ={setQ} mode={mode} setMode={setMode} />
         <div className="layout">

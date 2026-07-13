@@ -1,8 +1,9 @@
 import { DATA, PLUGINS, OWNER, REPO } from "../data.js";
-import { GithubIcon } from "../icons.jsx";
+import { GithubIcon, SunIcon, MoonIcon } from "../icons.jsx";
 
-export default function Header() {
+export default function Header({ theme, onToggleTheme }) {
   const pluginCount = Object.keys(PLUGINS).length;
+  const nextTheme = theme === "dark" ? "light" : "dark";
   return (
     <header className="top">
       <div className="wrap top-inner">
@@ -27,6 +28,9 @@ export default function Header() {
             <b>{pluginCount}</b> plugins
           </span>
         </div>
+        <button className="theme-toggle" onClick={onToggleTheme} aria-label={`Switch to ${nextTheme} theme`} title={`Switch to ${nextTheme} theme`}>
+          {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+        </button>
         <a className="gh-link" href={`https://github.com/${OWNER}/${REPO}`} target="_blank" rel="noopener noreferrer">
           <GithubIcon />
           GitHub
