@@ -1,0 +1,12 @@
+{
+  "name": "my-monkeys",
+  "owner": {
+    "name": "RostK",
+    "email": "rkaniuchenko@gmail.com"
+  },
+  "description": "Marketplace for my-monkeys Claude Code plugins",
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
+  "plugins": []
+}
