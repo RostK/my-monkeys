@@ -6,6 +6,7 @@ import Header from "./components/Header.jsx";
 import SearchBar from "./components/SearchBar.jsx";
 import Filters from "./components/Filters.jsx";
 import Card from "./components/Card.jsx";
+import WhatsNew from "./components/WhatsNew.jsx";
 import Toast from "./components/Toast.jsx";
 
 // The detail modal pulls in react-markdown; load it only when a card is opened.
@@ -26,10 +27,11 @@ function parseHash() {
     types: toSet(p.get("type")),
     plugins: toSet(p.get("plugin")),
     tags: toSet(p.get("tag")),
+    open: p.get("a") || null,
   };
 }
 
-function writeHash(s) {
+function writeHash(s, open) {
   const p = new URLSearchParams();
   if (s.q) p.set("q", s.q);
   if (s.mode !== "smart") p.set("mode", s.mode);
@@ -37,6 +39,7 @@ function writeHash(s) {
   if (s.types.size) p.set("type", [...s.types].join(","));
   if (s.plugins.size) p.set("plugin", [...s.plugins].join(","));
   if (s.tags.size) p.set("tag", [...s.tags].join(","));
+  if (open) p.set("a", open);
   const str = p.toString();
   history.replaceState(null, "", str ? "#" + str : location.pathname + location.search);
 }
@@ -49,7 +52,7 @@ export default function App() {
   const [types, setTypes] = useState(init.types);
   const [plugins, setPlugins] = useState(init.plugins);
   const [tags, setTags] = useState(init.tags);
-  const [openId, setOpenId] = useState(null);
+  const [openId, setOpenId] = useState(() => (DATA.some((a) => a.id === init.open) ? init.open : null));
   const [toastMsg, setToastMsg] = useState(null);
   const [theme, setTheme] = useState(() => {
     try {
@@ -74,10 +77,10 @@ export default function App() {
   const results = useMemo(() => computeResults(DATA, state), [state]);
   const openArtifact = useMemo(() => DATA.find((a) => a.id === openId) || null, [openId]);
 
-  // Keep the URL in sync with filter state (shareable links).
+  // Keep the URL in sync with filter state + the open card (shareable / deep links).
   useEffect(() => {
-    writeHash(state);
-  }, [state]);
+    writeHash(state, openId);
+  }, [state, openId]);
 
   // React to manual URL edits / back-forward navigation.
   useEffect(() => {
@@ -89,6 +92,7 @@ export default function App() {
       setTypes(s.types);
       setPlugins(s.plugins);
       setTags(s.tags);
+      setOpenId(DATA.some((a) => a.id === s.open) ? s.open : null);
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -133,6 +137,17 @@ export default function App() {
     }
   }, []);
 
+  const copyLink = useCallback(() => {
+    const url = location.href;
+    const done = () => setToastMsg(t.toast.linkCopied);
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(done, () => (legacyCopy(url), done()));
+    else (legacyCopy(url), done());
+  }, []);
+
+  // Most recently added / updated artifacts (by git date) for the What's New section.
+  const recent = useMemo(() => [...DATA].sort((a, b) => a.days - b.days || a.displayName.localeCompare(b.displayName)).slice(0, 5), []);
+  const isDefaultView = !q && !types.size && !plugins.size && !tags.size;
+
   return (
     <>
       <Header theme={theme} onToggleTheme={toggleTheme} />
@@ -141,6 +156,7 @@ export default function App() {
         <div className="layout">
           <Filters types={types} plugins={plugins} tags={tags} toggle={toggle} reset={reset} />
           <main>
+            {isDefaultView && <WhatsNew items={recent} onOpen={setOpenId} />}
             <div className="results-head">
               <div className="results-count">
                 <b>{results.length}</b> {results.length === 1 ? t.results.one : t.results.many}
@@ -175,7 +191,7 @@ export default function App() {
 
       {openArtifact && (
         <Suspense fallback={null}>
-          <DetailModal artifact={openArtifact} onClose={() => setOpenId(null)} onInstall={copyInstall} />
+          <DetailModal artifact={openArtifact} onClose={() => setOpenId(null)} onInstall={copyInstall} onCopyLink={copyLink} />
         </Suspense>
       )}
       <Toast message={toastMsg} />

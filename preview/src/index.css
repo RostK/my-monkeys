@@ -528,7 +528,120 @@ aside .facet {
   font-weight: 600;
 }
 
+/* ---------- What's new ---------- */
+.whatsnew {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, var(--panel)), var(--panel));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px 12px;
+  margin-bottom: 22px;
+}
+.wn-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+.wn-spark {
+  color: var(--accent-2);
+  align-self: center;
+  display: inline-flex;
+}
+.wn-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.wn-sub {
+  color: var(--text-mut);
+  font-size: 12.5px;
+}
+.wn-list {
+  display: flex;
+  flex-direction: column;
+}
+.wn-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  margin: 0 -10px;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.wn-item + .wn-item {
+  border-top: 1px solid var(--border-soft);
+}
+.wn-item:hover {
+  background: var(--panel-2);
+  border-top-color: transparent;
+}
+.wn-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.wn-ico {
+  color: var(--accent-2);
+  display: inline-flex;
+  font-size: 15px;
+  flex: none;
+}
+.wn-name {
+  font-weight: 550;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wn-plugin {
+  color: var(--text-mut);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.wn-right {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+}
+.wn-date {
+  color: var(--text-mut);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.wn-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-2);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+@media (max-width: 560px) {
+  .wn-plugin {
+    display: none;
+  }
+}
+
 /* ---------- Modal ---------- */
+.modal-head-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
 .modal-back {
   position: fixed;
   inset: 0;

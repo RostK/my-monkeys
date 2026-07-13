@@ -49,13 +49,20 @@ export const t = {
     sortNewest: "Newest",
     sortAz: "A–Z",
   },
+  whatsNew: {
+    title: "What's new",
+    subtitle: "Recently added & updated",
+    badge: "New",
+  },
   modal: {
     copy: "Copy",
     github: "GitHub",
     close: "Close",
+    copyLink: "Copy link",
   },
   toast: {
     copiedPrefix: "Copied:",
     copied: "Copied",
+    linkCopied: "Link copied",
   },
 };

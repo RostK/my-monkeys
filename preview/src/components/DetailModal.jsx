@@ -2,10 +2,10 @@ import { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MARKETPLACE } from "../data.js";
-import { TypeIcon, CopyIcon, CloseIcon, GithubIcon } from "../icons.jsx";
+import { TypeIcon, CopyIcon, CloseIcon, GithubIcon, LinkIcon } from "../icons.jsx";
 import { t } from "../strings.js";
 
-export default function DetailModal({ artifact: a, onClose, onInstall }) {
+export default function DetailModal({ artifact: a, onClose, onInstall, onCopyLink }) {
   const closeRef = useRef(null);
 
   useEffect(() => {
@@ -46,9 +46,14 @@ export default function DetailModal({ artifact: a, onClose, onInstall }) {
               ))}
             </div>
           </div>
-          <button className="icon-btn" aria-label={t.modal.close} ref={closeRef} onClick={onClose}>
-            <CloseIcon />
-          </button>
+          <div className="modal-head-actions">
+            <button className="icon-btn" aria-label={t.modal.copyLink} title={t.modal.copyLink} onClick={onCopyLink}>
+              <LinkIcon />
+            </button>
+            <button className="icon-btn" aria-label={t.modal.close} ref={closeRef} onClick={onClose}>
+              <CloseIcon />
+            </button>
+          </div>
         </div>
 
         <div className="modal-actions">
