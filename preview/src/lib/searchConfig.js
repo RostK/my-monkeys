@@ -88,6 +88,22 @@ function stem(word) {
   return word;
 }
 
+// Hoisted to module scope (AC-30): a regex literal inside a hot function
+// re-evaluates on every call in the spec; hoisting it is a pure,
+// zero-behaviour-change micro-optimization — same pattern, same flags.
+const NON_ALPHANUMERIC = /[^\p{L}\p{N}]+/gu;
+
+// AC-30: `normalizeTerm` runs per-token at BOTH index time (thousands of
+// tokens per SKILL.md body) and query time, and natural-language corpora
+// repeat tokens heavily ("the", "a", "search", ...). Memoizing in a
+// module-level Map turns every repeat token into an O(1) lookup instead of
+// re-running lowercase/strip/stop-word/stem for it. This is a PURE cache —
+// same input always yields the same output — so it changes NO ranking
+// behaviour whatsoever. Unbounded by design: the key space is bounded by the
+// distinct tokens across the (small, static) catalog + user queries, never
+// large enough in this app to be a memory concern.
+const normalizeCache = new Map();
+
 // Runs at BOTH index time and query time — MiniSearch's top-level
 // `processTerm` (not a per-searchOptions override) is used for both by
 // default, which is exactly what keeps stemming/stop-words symmetric. That
@@ -97,10 +113,18 @@ function stem(word) {
 // term with fixed regexes — the user's query string itself is never passed
 // to `RegExp` or interpreted as one.
 export function normalizeTerm(term) {
-  const lower = String(term).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
-  if (!lower) return false;
-  if (STOP_WORDS.has(lower)) return false;
-  return stem(lower);
+  const raw = String(term);
+  const cached = normalizeCache.get(raw);
+  if (cached !== undefined) return cached;
+
+  const lower = raw.toLowerCase().replace(NON_ALPHANUMERIC, "");
+  let result;
+  if (!lower) result = false;
+  else if (STOP_WORDS.has(lower)) result = false;
+  else result = stem(lower);
+
+  normalizeCache.set(raw, result);
+  return result;
 }
 
 // AC-14: Fuzzy (internally `mode: "smart"`) — OR semantics + prefix + fuzzy +
