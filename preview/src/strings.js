@@ -23,9 +23,9 @@ export const t = {
   search: {
     placeholder: "Search skills, commands, agents…",
     ariaLabel: "Search the marketplace",
-    modeHint: "Smart = semantic ranking · Exact = keyword only",
+    modeHint: "Fuzzy = typo-tolerant, ranked · Exact = literal, ranked",
     label: "search",
-    smart: "Smart",
+    smart: "Fuzzy",
     exact: "Exact",
   },
   filters: {

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { DATA, INSTALL_MODES, installCommand } from "./data.js";
-import { computeResults } from "./lib/search.js";
+import { computeResults, getEngine } from "./lib/search.js";
+import { parseHash, writeHash } from "./lib/urlState.js";
 import { t } from "./strings.js";
 import Header from "./components/Header.jsx";
 import SearchBar from "./components/SearchBar.jsx";
@@ -12,36 +13,16 @@ import InstallToggle from "./components/InstallToggle.jsx";
 // The detail modal pulls in react-markdown; load it only when a card is opened.
 const DetailModal = lazy(() => import("./components/DetailModal.jsx"));
 
-const SORTS = ["relevance", "newest", "az"];
-
-function toSet(csv) {
-  return new Set(csv ? csv.split(",").filter(Boolean) : []);
-}
-
-function parseHash() {
-  const p = new URLSearchParams(location.hash.replace(/^#/, ""));
-  return {
-    q: p.get("q") || "",
-    mode: p.get("mode") === "exact" ? "exact" : "smart",
-    sort: SORTS.includes(p.get("sort")) ? p.get("sort") : "relevance",
-    types: toSet(p.get("type")),
-    plugins: toSet(p.get("plugin")),
-    tags: toSet(p.get("tag")),
-    open: p.get("a") || null,
-  };
-}
-
-function writeHash(s, open) {
-  const p = new URLSearchParams();
-  if (s.q) p.set("q", s.q);
-  if (s.mode !== "smart") p.set("mode", s.mode);
-  if (s.sort !== "relevance") p.set("sort", s.sort);
-  if (s.types.size) p.set("type", [...s.types].join(","));
-  if (s.plugins.size) p.set("plugin", [...s.plugins].join(","));
-  if (s.tags.size) p.set("tag", [...s.tags].join(","));
-  if (open) p.set("a", open);
-  const str = p.toString();
-  history.replaceState(null, "", str ? "#" + str : location.pathname + location.search);
+// getEngine() already fails closed internally (returns null rather than
+// throwing — see lib/search.js). This wrapper is defense-in-depth so that
+// even a getEngine() that DOES throw can never crash the app: this is a
+// search box, not an authz gate (AC-25).
+function safeGetEngine() {
+  try {
+    return getEngine();
+  } catch {
+    return null;
+  }
 }
 
 export default function App() {
@@ -87,8 +68,17 @@ export default function App() {
   }, [theme]);
   const toggleTheme = useCallback(() => setTheme((t) => (t === "dark" ? "light" : "dark")), []);
 
+  // Warm the memoized search-engine singleton on mount so it's already built
+  // by the time the user's first keystroke needs it. Idempotent (getEngine()
+  // memoizes internally) and never sets state — it exists purely as a side
+  // effect on the module-level singleton.
+  useEffect(() => {
+    safeGetEngine();
+  }, []);
+
   const state = useMemo(() => ({ q, mode, sort, types, plugins, tags }), [q, mode, sort, types, plugins, tags]);
-  const results = useMemo(() => computeResults(DATA, state), [state]);
+  const engine = state.q ? safeGetEngine() : null;
+  const results = useMemo(() => computeResults(DATA, state, engine), [state, engine]);
   const openArtifact = useMemo(() => DATA.find((a) => a.id === openId) || null, [openId]);
 
   // Keep the URL in sync with filter state + the open card (shareable / deep links).
