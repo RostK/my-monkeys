@@ -6,6 +6,10 @@ A web app for searching and browsing the `my-monkeys` plugin marketplace artifac
 - **Status:** Draft v1 (MVP)
 - **Owner:** RostK
 - **Date:** 2026-07-13
+- **Visual reference:** Claude design prototype `Marketplace UI.dc.html` — header
+  (`my-monkeys` + "marketplace"), search bar, left sidebar (TYPE / PLUGIN / TAGS facets),
+  card grid with type badge + Install/Details, and a Tweaks panel exposing `installTarget`,
+  `defaultSmart`, `showStats`. This spec implements that layout.
 
 ---
 
@@ -43,9 +47,9 @@ Issues, Cmd-K palette, dark-mode toggle (dark theme is the default).
 │    1. walk plugins/** and .claude-plugin/marketplace.json                        │
 │    2. parse plugin.json, YAML frontmatter of SKILL.md, commands/*.md, agents/*.md│
 │    3. read git last-modified date of each file                                   │
-│    4. emit public/index.json                                                     │
-│    5. embed.mjs → emit public/embeddings.json (vectors for semantic search)      │
-│  → vite build → deploy to gh-pages                                               │
+│    4. emit site/public/index.json                                                │
+│    5. embed.mjs → emit site/public/embeddings.json (vectors for semantic search) │
+│  → vite build (site/dist) → deploy to GitHub Pages                               │
 └──────────────────────────────────────────────────────────────────────────────┘
                                      │  static files
                                      ▼
@@ -121,16 +125,39 @@ A parallel set of vectors keyed by the `id` from `index.json`.
 
 Steps:
 1. `checkout` with `fetch-depth: 0` (git history needed for dates).
-2. `node scripts/build-index.mjs` → `apps/web/public/index.json`.
-3. `node scripts/embed.mjs` → `apps/web/public/embeddings.json`
+2. `npm --prefix site ci`.
+3. `npm --prefix site run index` → `site/public/index.json` (runs `scripts/build-index.mjs`).
+4. `npm --prefix site run embed` → `site/public/embeddings.json`
    (secret `OPENAI_API_KEY` **or** local `@xenova/transformers` with no key —
    see §6, decided at implementation time; cache embeddings by hash of `body`
    so unchanged artifacts are not recomputed).
-4. `npm --prefix apps/web ci && npm --prefix apps/web run build`.
-5. Deploy `apps/web/dist` to GitHub Pages (`actions/deploy-pages`).
+5. `npm --prefix site run build` → `site/dist`.
+6. Upload `site/dist` as the Pages artifact and deploy (`actions/upload-pages-artifact`
+   + `actions/deploy-pages`).
 
 **Embedding cache:** store `content-hash → vector` (e.g. from the previous build's
 `embeddings.json` via `actions/cache`); recompute only changed artifacts.
+
+### 4.1 Hosting on GitHub Pages
+The site is a **Project Page**, served at `https://<owner>.github.io/my-monkeys/`.
+This dictates a few settings:
+
+- **Base path.** `vite.config.ts` sets `base: '/my-monkeys/'` so all asset URLs resolve
+  under the repo subpath. Fetches use relative URLs (`import.meta.env.BASE_URL + 'index.json'`),
+  never absolute `/index.json`.
+- **SPA fallback.** Pages has no server rewrites. **Hash routing** (`#/artifact/<id>`)
+  is used so a refresh or shared deep link never 404s. (Alternative — copying `index.html`
+  to `404.html` — is avoided; hash routing is simpler and fully static.)
+- **Deploy mechanism.** GitHub Actions with `actions/deploy-pages` (Pages **Source =
+  GitHub Actions**, not "deploy from branch"). Nothing is committed to a `gh-pages` branch;
+  only the built `site/dist` artifact is published.
+- **`.nojekyll`.** Emit an empty `.nojekyll` into `site/dist` so Pages does not run Jekyll
+  and does not strip files/folders beginning with `_`.
+- **Isolation from the marketplace.** Only `site/dist` is published. The marketplace files
+  (`.claude-plugin/`, `plugins/`) are the site's *data source*, read at build time, and are
+  never served as-is — the two concerns stay cleanly separated.
+- **Custom domain (optional, later).** If ever mapped to an apex/subdomain, drop the base
+  path back to `'/'` and add a `CNAME` file; out of scope for the MVP.
 
 ---
 
@@ -171,17 +198,25 @@ Hybrid, fully client-side.
 | Icons          | lucide-react                            |
 | CI             | GitHub Actions + `actions/deploy-pages` |
 
-Directory layout:
+Directory layout — the **entire web project lives in one directory (`site/`)**, kept
+separate from the marketplace files (`.claude-plugin/`, `plugins/`) so the two never mix:
 ```
 my-monkeys/
-├── apps/web/            # React+Vite SPA
-│   ├── public/          # index.json, embeddings.json (CI-generated, gitignored)
+├── .claude-plugin/          # marketplace catalog — untouched by the site
+├── plugins/                 # plugin artifacts — the site's data source (read-only)
+├── site/                    # ← the whole UI project, self-contained
+│   ├── package.json         # site's own deps + scripts (build, dev, index, embed)
+│   ├── vite.config.ts       # base: '/my-monkeys/' for Project Pages
+│   ├── index.html
+│   ├── public/              # index.json, embeddings.json (CI-generated, gitignored)
+│   ├── scripts/
+│   │   ├── build-index.mjs  # reads ../plugins, writes ./public/index.json
+│   │   └── embed.mjs
 │   └── src/
-├── scripts/
-│   ├── build-index.mjs
-│   └── embed.mjs
-└── .github/workflows/deploy.yml
+└── .github/workflows/deploy.yml   # must stay at repo root (GitHub requirement)
 ```
+> Only `.github/workflows/` cannot move into `site/` — GitHub Actions requires workflow
+> files at the repo root. Everything else the site needs is inside `site/`.
 
 ---
 
