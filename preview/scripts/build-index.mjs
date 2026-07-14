@@ -15,6 +15,7 @@ import { join, dirname, resolve, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import matter from "gray-matter";
+import { attachKeywords, readSidecar } from "./lib/keywords.mjs";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const OUT = join(REPO_ROOT, "preview", "src", "catalog.json");
@@ -194,9 +195,17 @@ for (const entry of marketplace.plugins || []) {
   }
 }
 
+// Keyword sidecar (preview/data/keywords.json) attaches `keywords: string[]`
+// to every artifact for the search engine. A missing/malformed sidecar or a
+// per-artifact content-hash drift only WARNS — it must never fail the build
+// (AC-20).
+const sidecar = readSidecar();
+const { artifacts: artifactsWithKeywords, warnings: keywordWarnings } = attachKeywords(artifacts, sidecar);
+for (const w of keywordWarnings) console.warn(w);
+
 const stats = { plugins: 0, skills: 0, agents: 0, commands: 0 };
 const plural = { plugin: "plugins", skill: "skills", agent: "agents", command: "commands" };
-for (const a of artifacts) stats[plural[a.type]]++;
+for (const a of artifactsWithKeywords) stats[plural[a.type]]++;
 
 const catalog = {
   generatedAt: new Date().toISOString(),
@@ -206,7 +215,7 @@ const catalog = {
   branch: BRANCH,
   stats,
   plugins: pluginsOut,
-  artifacts,
+  artifacts: artifactsWithKeywords,
 };
 
 writeFileSync(OUT, JSON.stringify(catalog, null, 2) + "\n");

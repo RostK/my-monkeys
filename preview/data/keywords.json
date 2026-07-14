@@ -1,0 +1,492 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-14T00:00:00.000Z",
+  "artifacts": {
+    "engineering-paved-path/plugin/engineering-paved-path": {
+      "keywords": [
+        "reusable skill bundle",
+        "engineering standards library",
+        "best practices skill pack",
+        "coding conventions plugin",
+        "base plugin for other plugins",
+        "opinionated defaults",
+        "framework guidance bundle",
+        "code quality toolkit",
+        "shared conventions",
+        "stack-specific best practices",
+        "onboarding skill set"
+      ],
+      "contentHash": "sha256:c4d14560aa64f05ca4c590534da1b260b791426c4d0c9b4494004bcdb4b0f137",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/drizzle-orm-patterns": {
+      "keywords": [
+        "orm",
+        "sql toolkit",
+        "database migrations",
+        "query builder",
+        "type-safe database access",
+        "schema definition",
+        "table relations",
+        "drizzle kit",
+        "database transactions",
+        "postgres queries",
+        "mysql queries",
+        "sqlite queries",
+        "crud operations"
+      ],
+      "contentHash": "sha256:52131ddb3986f3dec904d1db40972bbc572628635ad879f1b8b3e1b7c0278a83",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/engineering-insights": {
+      "keywords": [
+        "learnings file",
+        "LEARNINGS.md",
+        "capture tribal knowledge",
+        "record gotchas",
+        "postmortem notes",
+        "durable notes for future sessions",
+        "module memory",
+        "document non-obvious findings",
+        "session wrap-up notes",
+        "avoid repeating mistakes",
+        "knowledge base for a codebase"
+      ],
+      "contentHash": "sha256:89f9bd1e878897a25a38363690f1fb61929ee38d712e963ddd62909a40090a69",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/fastify-best-practices": {
+      "keywords": [
+        "node.js server framework",
+        "rest api backend",
+        "http server routes",
+        "json schema validation",
+        "plugin encapsulation",
+        "request lifecycle hooks",
+        "pino logging",
+        "authentication middleware",
+        "cors and security headers",
+        "websocket support",
+        "server error handling",
+        "backend performance tuning"
+      ],
+      "contentHash": "sha256:3cc6c185a6b26b348f429c720b6598400e288ca1f087875e7d672d940a675375",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/frontend-ui-architecture": {
+      "keywords": [
+        "folder structure for react",
+        "feature-based organization",
+        "where should this file go",
+        "component file placement",
+        "server client boundary",
+        "colocation of code",
+        "module boundaries",
+        "utils vs lib vs helpers",
+        "barrel files",
+        "project structure review",
+        "next.js app router layout",
+        "code organization"
+      ],
+      "contentHash": "sha256:32e44bf0e9e22c7cae67739ac1ec4eeac517617a8f2fdd86ea3dcd0db0f44d6b",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/next-best-practices": {
+      "keywords": [
+        "nextjs conventions",
+        "app router file conventions",
+        "react server components",
+        "async params and searchParams",
+        "route handlers",
+        "server actions",
+        "metadata and og images",
+        "image optimization",
+        "font optimization",
+        "hydration errors",
+        "suspense boundaries",
+        "middleware to proxy rename",
+        "self hosting nextjs"
+      ],
+      "contentHash": "sha256:2f4859ef77e27cf3a49c282a74b079f47ee7de9cf236c68b7a6cb8df10fe5cc7",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/onion-architecture": {
+      "keywords": [
+        "ports and adapters",
+        "layered backend architecture",
+        "dependency injection container",
+        "routes service repository pattern",
+        "inward dependency rule",
+        "composition root",
+        "where does this backend logic go",
+        "can a route import the database",
+        "clean architecture backend",
+        "domain core purity",
+        "adapter interfaces",
+        "module boundaries for backend"
+      ],
+      "contentHash": "sha256:86c3f4e7c8ed7d4adc3fcc3eb542ac46cff9b100d36c618e21b1c9241d822f71",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/postgresql-table-design": {
+      "keywords": [
+        "database schema design",
+        "postgres data types",
+        "primary keys and foreign keys",
+        "indexing strategy",
+        "normalization",
+        "constraints and checks",
+        "jsonb columns",
+        "partitioning large tables",
+        "row level security",
+        "upsert design",
+        "timestamptz vs timestamp",
+        "postgres gotchas"
+      ],
+      "contentHash": "sha256:a6190def984e7c207f62a2787c7fe9941097864071d5b924319d30e210ed468d",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/pr-self-review": {
+      "keywords": [
+        "check my code before pushing",
+        "pre-push review gate",
+        "sanity check my diff",
+        "pull request checklist",
+        "catch bugs before code review",
+        "self-review before opening a PR",
+        "route diff to relevant skills",
+        "block push on critical findings",
+        "pre-flight check",
+        "gate the pull request",
+        "review changes before they leave the machine"
+      ],
+      "contentHash": "sha256:d11c83229a076e4efd999824537a245dd6ded4d79d8dc8fa751dd0702c20c2aa",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/react-best-practices": {
+      "keywords": [
+        "react anti-patterns",
+        "component design rules",
+        "hooks misuse",
+        "derive dont store",
+        "state management patterns",
+        "memoization guidance",
+        "render factories",
+        "conditional rendering pitfalls",
+        "accessibility in react",
+        "data fetching in hooks",
+        "key prop pitfalls",
+        "error boundaries"
+      ],
+      "contentHash": "sha256:3f2f29cd92eb42b8fd809a171846a4bf69d0b5e61a57ed8de20f30907d329005",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/react-testing-library": {
+      "keywords": [
+        "rtl testing guide",
+        "vitest component tests",
+        "testing react components",
+        "user event interactions",
+        "query priority getByRole",
+        "mocking api calls in tests",
+        "msw network mocking",
+        "async testing findBy waitFor",
+        "hook testing renderHook",
+        "testing trophy philosophy",
+        "jsdom test environment",
+        "test file conventions"
+      ],
+      "contentHash": "sha256:6191de92e66f13df9e45dab78fabdf7d4ad7562097a3097dc20d19d285551d0c",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/security": {
+      "keywords": [
+        "owasp top 10",
+        "vulnerability review",
+        "authentication and authorization",
+        "input validation",
+        "sql injection",
+        "nosql injection",
+        "cross-site scripting xss",
+        "jwt security",
+        "secrets management",
+        "file upload security",
+        "rate limiting",
+        "security headers"
+      ],
+      "contentHash": "sha256:95e3a7fd4337fadea2507165126fb236500f5138ecfb4c7a92ae1370a13c325b",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/typescript-expert": {
+      "keywords": [
+        "type-level programming",
+        "generic types",
+        "type inference issues",
+        "typescript compiler errors",
+        "monorepo typescript setup",
+        "javascript to typescript migration",
+        "branded types",
+        "strict mode configuration",
+        "build performance tuning",
+        "module resolution problems",
+        "type testing",
+        "advanced typescript patterns"
+      ],
+      "contentHash": "sha256:b0699d294103a33acfb95c5e243a98ebcb600ae6f2229b5c69a2bf224540d4a8",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "engineering-paved-path/skill/zod": {
+      "keywords": [
+        "schema validation library",
+        "runtime type checking",
+        "parse and safeparse",
+        "type inference from schema",
+        "form validation schema",
+        "request body validation",
+        "error message formatting",
+        "discriminated unions",
+        "schema composition",
+        "data transforms and refinements",
+        "bundle size optimization for schemas"
+      ],
+      "contentHash": "sha256:cf6367fea5cb5404416507afd7364737712b290070c7051b81f3e177ee50372c",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "research-tools/plugin/research-tools": {
+      "keywords": [
+        "read-only investigator",
+        "grounded answers with citations",
+        "codebase research agent",
+        "web search agent",
+        "fact finding tool",
+        "cited structured report",
+        "no mutation research",
+        "answer honestly what could not be found",
+        "safe to run anywhere",
+        "investigation plugin"
+      ],
+      "contentHash": "sha256:777c5d70f54ebafc94806cd3a1764b787e42afa185444297b799115a4043548b",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "research-tools/agent/researcher": {
+      "keywords": [
+        "find grounded answers",
+        "codebase investigation",
+        "internet search agent",
+        "cited report",
+        "git history search",
+        "project file search",
+        "read-only agent",
+        "honest about missing information",
+        "structured findings report",
+        "does not write or edit files",
+        "clarify ambiguous questions"
+      ],
+      "contentHash": "sha256:aaf05dca37ffc6ca04daff3bc09af39e80d9c2f9b747d26e9317aa5e2e4577cf",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "architecture-review/plugin/architecture-review": {
+      "keywords": [
+        "structural review agent",
+        "topology check",
+        "diff architecture review",
+        "read-only architecture check",
+        "violation smell nit findings",
+        "path line citations",
+        "module structure review",
+        "does not modify code",
+        "branch review",
+        "architectural invariants"
+      ],
+      "contentHash": "sha256:d5f56c5c6978f45739416be091b676c4125c4a91f702cc308ed7e30838f82b07",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "architecture-review/agent/architecture-reviewer": {
+      "keywords": [
+        "backend layering check",
+        "onion architecture review",
+        "frontend feature structure check",
+        "server client boundary review",
+        "di container review",
+        "orm only in repository check",
+        "structural findings with citations",
+        "read-only review agent",
+        "not a line-level bug review",
+        "topology and invariants check"
+      ],
+      "contentHash": "sha256:fd381f747f1b9ae116d46279aa863d020971e6093bdf0c2ef191a1e81c333cb2",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "architecture-review/command/version-check": {
+      "keywords": [
+        "check plugin versions",
+        "confirm update landed",
+        "installed vs marketplace version",
+        "plugin version diff",
+        "compare marketplace manifest",
+        "did the update actually apply",
+        "verify plugin upgrade",
+        "list installed plugin versions"
+      ],
+      "contentHash": "sha256:897657dbd52c2b70ffadd924bbd66b5eba5814c801f9eeaa60cfe2b0fd101052",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "sdd-engineering/plugin/sdd-engineering": {
+      "keywords": [
+        "spec-driven development workflow",
+        "requirements to code pipeline",
+        "spec then plan then build",
+        "delegated implementation workflow",
+        "layered review pipeline",
+        "runtime verification workflow",
+        "workflow retrospective",
+        "thin orchestrator agents",
+        "structured feature delivery process",
+        "multi-agent build pipeline"
+      ],
+      "contentHash": "sha256:6950dbf8fc37e67de8159013b6f4ddbe831780ca74c98ce202e7c6d54d858090",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "sdd-engineering/skill/plan-implementation": {
+      "keywords": [
+        "turn spec into implementation plan",
+        "file-level how plan",
+        "run the planner",
+        "clarifying questions for a plan",
+        "research gaps in a plan",
+        "multi-agent vs single-agent execution",
+        "persist plan to plans directory",
+        "plan phase orchestrator",
+        "between spec and build",
+        "task unit breakdown"
+      ],
+      "contentHash": "sha256:f3eef7eb62b7204ba0310a00e283be312475520f91a5fa3b8ff7555cf85e5635",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "sdd-engineering/skill/requirements-engineering": {
+      "keywords": [
+        "writing testable requirements",
+        "ears acceptance criteria",
+        "invest user stories",
+        "acceptance criteria smells",
+        "definition of ready",
+        "completeness checklist for a spec",
+        "vague to testable translation",
+        "explicit scope boundaries",
+        "non-goals and moscow",
+        "what is missing from this spec"
+      ],
+      "contentHash": "sha256:daaccba2f0fcc03dd5bdf9557f8264a9616ca538593f1899af1f1a52425f988a",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "sdd-engineering/skill/retro": {
+      "keywords": [
+        "workflow retrospective",
+        "how did the agent run go",
+        "per-step telemetry ledger",
+        "agent token usage report",
+        "orchestration performance review",
+        "parallelism and duration metrics",
+        "failures and retries analysis",
+        "cross-run trend tracking",
+        "duplicated context across agents",
+        "post-run evaluation"
+      ],
+      "contentHash": "sha256:559b1d1b8bf735a7b4aa652d691483011a6a5dbd329c238271ba3e89c1bf82e9",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "sdd-engineering/skill/run-plan": {
+      "keywords": [
+        "execute an approved plan",
+        "build review fix gate pipeline",
+        "fan out implementer agents",
+        "parallel worktree isolated execution",
+        "post-review fix loop",
+        "pre-push gate",
+        "plan verifier and architecture reviewer gates",
+        "run the sdd implementation",
+        "orchestrate code build from a plan",
+        "bounded fix iterations"
+      ],
+      "contentHash": "sha256:a5949cf052572ca7ae2553abbbf05b557e6daaf10e0d202df690947fff232e36",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "sdd-engineering/skill/write-spec": {
+      "keywords": [
+        "draft a feature spec",
+        "interactive spec authoring",
+        "clarification loop for requirements",
+        "spec creator orchestration",
+        "needs clarification markers",
+        "formalize a feature request",
+        "design doc to spec",
+        "requirements before planning",
+        "spec authoring workflow"
+      ],
+      "contentHash": "sha256:b424d95e900aa18abba79ed9aebdc82465d29ea5559e9054be5892d262173b2d",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "sdd-engineering/agent/implementation-planner": {
+      "keywords": [
+        "turn requirements into a plan",
+        "the how not the what",
+        "file-level implementation plan",
+        "read-only planning agent",
+        "task units tagged backend or ui",
+        "parallelization graph",
+        "clarifying questions before planning",
+        "definition of done per task",
+        "multi-agent execution recommendation",
+        "plan before writing code"
+      ],
+      "contentHash": "sha256:b7fa29227752064fc4e9bf3b5c45b5cce21a115af52cdf2af66687cc56c8c2df",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "sdd-engineering/agent/implementer": {
+      "keywords": [
+        "execute one task unit",
+        "worktree isolated agent",
+        "backend or frontend track",
+        "apply preloaded skills to a task",
+        "make tests pass",
+        "self-review own diff",
+        "parallel implementer agents",
+        "file-scoped task execution",
+        "plan-driven coding agent"
+      ],
+      "contentHash": "sha256:dd4271820059be78cb0f4f307f2d5bac76a888c91603a929990e52deff5fd8fd",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "sdd-engineering/agent/plan-verifier": {
+      "keywords": [
+        "requirements coverage check",
+        "traceability against a plan",
+        "confirm implementation matches plan",
+        "read-only verification agent",
+        "grounded in file and line citations",
+        "not a code quality review",
+        "acceptance criteria coverage",
+        "done-ness check",
+        "not found vs implemented verdicts"
+      ],
+      "contentHash": "sha256:6607f777d40df989406b61c175b4ada6f30a7ef44f9b3de59711dcc4909bf513",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    },
+    "sdd-engineering/agent/spec-creator": {
+      "keywords": [
+        "autonomous spec author",
+        "draft a spec from a feature request",
+        "grounds on the codebase",
+        "needs clarification markers",
+        "resolve mode for a spec",
+        "writes to specs directory",
+        "spec index registration",
+        "design doc to spec conversion",
+        "headless spec draft",
+        "not the how just the what"
+      ],
+      "contentHash": "sha256:2bd7d8992d089ccbba070dd96796988f1393ab22650a99f7082fc349de1aac3a",
+      "generatedAt": "2026-07-14T00:00:00.000Z"
+    }
+  }
+}
