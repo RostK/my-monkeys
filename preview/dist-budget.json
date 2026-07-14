@@ -1,0 +1,6 @@
+{
+  "baselineGzipBytes": 198705,
+  "maxDeltaBytes": 12288,
+  "measuredFrom": "1cf5ea9ac330b5506a226951a08690c541e5d548",
+  "note": "baselineGzipBytes is the sum of gzipped bytes of dist/assets/*.js, dist/assets/*.css, and dist/index.html on `main`, measured with scripts/check-dist.mjs's sumGzippedDistBytes() against a real `npm run build` in a disposable worktree of `main` (AC-21). maxDeltaBytes is the 12 KiB ceiling from SPEC-01 AC-21 (12,288 bytes). Re-measure and update both fields whenever main's baseline bundle changes for reasons unrelated to this feature."
+}

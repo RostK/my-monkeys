@@ -1,62 +1,122 @@
-/* Pure search / filter / sort logic — no framework, easy to unit-test. */
+/* Pure search / filter / sort logic, built on MiniSearch — no framework, easy
+ * to unit-test (engineering-paved-path:frontend-ui-architecture: lib/ holds
+ * framework-free logic; no React import here). See searchConfig.js for every
+ * tuning knob (fields, boosts, BM25 params, stemming, stop-words, mode
+ * options) — this file is only the adapter + filter/sort orchestration.
+ */
+import MiniSearch from "minisearch";
+import { DATA } from "../data.js";
+import { FIELDS, MODE_OPTIONS, normalizeTerm } from "./searchConfig.js";
 
-function score(a, tokens, mode) {
-  if (!tokens.length) return 0;
-  let s = 0;
-  for (const t of tokens) {
-    if (a.displayName.toLowerCase().indexOf(t) >= 0) s += 6;
-    if (a.tags.join(" ").indexOf(t) >= 0) s += 4;
-    if (a.description.toLowerCase().indexOf(t) >= 0) s += 3;
-    if (mode === "smart" && a.body.toLowerCase().indexOf(t) >= 0) s += 1;
-    if (a.plugin.indexOf(t) >= 0) s += 2;
-  }
-  return s;
-}
-
-function matchesQuery(a, tokens, mode) {
-  if (!tokens.length) return true;
-  for (const t of tokens) {
-    let hit;
-    if (mode === "exact") {
-      hit =
-        a.displayName.toLowerCase().indexOf(t) >= 0 ||
-        a.name.toLowerCase().indexOf(t) >= 0 ||
-        a.tags.join(" ").indexOf(t) >= 0;
-    } else {
-      hit = a.haystack.indexOf(t) >= 0 || a.body.toLowerCase().indexOf(t) >= 0;
-    }
-    if (!hit) return false; // all tokens must match (AND)
-  }
-  return true;
+function toDocument(a) {
+  return {
+    id: a.id,
+    displayName: a.displayName || "",
+    name: a.name || "",
+    tags: Array.isArray(a.tags) ? a.tags.join(" ") : "",
+    keywords: Array.isArray(a.keywords) ? a.keywords.join(" ") : "",
+    description: a.description || "",
+    plugin: a.plugin || "",
+    // E-9: an empty body must not drop an artifact from the index nor divide
+    // by zero in the length norm — always index a string, even if empty.
+    body: a.body || "",
+  };
 }
 
 /**
- * @param {Array} data       full artifact list
- * @param {object} state     { q, mode, sort, types:Set, plugins:Set, tags:Set }
+ * Builds a fresh MiniSearch engine over `data`. Framework-free; the query
+ * string is always passed to `engine.search()` as plain text — never turned
+ * into a RegExp or interpreted as markup (AC-24).
+ * @param {Array} data artifact list to index
+ * @returns {MiniSearch}
+ */
+export function createEngine(data) {
+  const engine = new MiniSearch({
+    fields: FIELDS,
+    idField: "id",
+    processTerm: normalizeTerm,
+    searchOptions: MODE_OPTIONS.smart,
+  });
+  engine.addAll(data.map(toDocument));
+  return engine;
+}
+
+// Module-level memoized singleton over the production catalog (DATA from
+// ../data.js). Wrapped in try/catch: if construction throws for ANY reason,
+// the memoized value becomes `null` and stays `null` — callers (computeResults)
+// treat that as "no query stage" and fail open (AC-25): this is a search box,
+// not an authz gate.
+let singleton;
+export function getEngine() {
+  if (singleton !== undefined) return singleton;
+  try {
+    singleton = createEngine(DATA);
+  } catch {
+    singleton = null;
+  }
+  return singleton;
+}
+
+// Ranked-id cache, keyed by engine+mode+query, so toggling a facet filter
+// never re-runs the MiniSearch query (E-6: ranking stays stable when a
+// filter is toggled) — the query always runs once, over the FULL corpus.
+let lastQuery = null; // { engine, key, scoreById: Map<id, score> }
+
+function rankedScores(engine, q, mode) {
+  // FINDING 3 fix: key on engine identity too (not just mode+query) — a
+  // single module-level slot keyed only on "mode::q" would return a PRIOR
+  // engine's scores for a query run against a DIFFERENT engine instance
+  // (fixture engine A, then fixture engine B, same query+mode). Production
+  // has one singleton so this was invisible there, but the test suite passes
+  // arbitrary fixture engines, which made results silently order-dependent.
+  const key = mode + "::" + q;
+  if (lastQuery && lastQuery.engine === engine && lastQuery.key === key) return lastQuery.scoreById;
+  const results = engine.search(q, MODE_OPTIONS[mode]);
+  const scoreById = new Map(results.map((r) => [r.id, r.score]));
+  lastQuery = { engine, key, scoreById };
+  return scoreById;
+}
+
+/**
+ * @param {Array} data        full artifact list (unfiltered by facets)
+ * @param {object} state      { q, mode, sort, types:Set, plugins:Set, tags:Set }
+ * @param {MiniSearch|null} [engine] defaults to the memoized production
+ *   singleton (getEngine()); pass an engine built via createEngine() to
+ *   query a different corpus (tests), or `null` explicitly to simulate an
+ *   engine-initialization failure (AC-25).
  * @returns {Array} filtered + sorted artifacts
  */
-export function computeResults(data, state) {
-  const tokens = state.q.toLowerCase().split(/\s+/).filter(Boolean);
-  const { types, plugins, tags, mode } = state;
+export function computeResults(data, state, engine = getEngine()) {
+  const q = String(state.q || "").trim();
+  const { types, plugins, tags, mode, sort } = state;
 
-  const list = data
-    .filter((a) => {
-      if (types.size && !types.has(a.type)) return false;
-      if (plugins.size && !plugins.has(a.plugin)) return false;
-      if (tags.size && !a.tags.some((t) => tags.has(t))) return false;
-      return matchesQuery(a, tokens, mode);
-    })
-    .map((a) => ({ a, _score: score(a, tokens, mode) }));
+  // `scoreById === null` means "no query stage ran": either the query is
+  // empty, or the engine is down (AC-25) — in both cases facets still apply
+  // and Relevance falls back to `newest` below (AC-8).
+  let scoreById = null;
+  if (q && engine) {
+    scoreById = rankedScores(engine, q, mode === "exact" ? "exact" : "smart");
+  }
 
-  let sort = state.sort;
-  if (sort === "relevance" && !tokens.length) sort = "newest";
-
-  list.sort((x, y) => {
-    if (sort === "az") return x.a.displayName.localeCompare(y.a.displayName);
-    if (sort === "newest") return x.a.days - y.a.days;
-    if (y._score !== x._score) return y._score - x._score;
-    return x.a.days - y.a.days;
+  const list = data.filter((a) => {
+    if (types.size && !types.has(a.type)) return false;
+    if (plugins.size && !plugins.has(a.plugin)) return false;
+    if (tags.size && !a.tags.some((t) => tags.has(t))) return false;
+    if (scoreById && !scoreById.has(a.id)) return false;
+    return true;
   });
 
-  return list.map((x) => x.a);
+  let effectiveSort = sort;
+  if (effectiveSort === "relevance" && !scoreById) effectiveSort = "newest";
+
+  list.sort((x, y) => {
+    if (effectiveSort === "az") return x.displayName.localeCompare(y.displayName);
+    if (effectiveSort === "newest") return x.days - y.days;
+    const sx = scoreById.get(x.id) ?? 0;
+    const sy = scoreById.get(y.id) ?? 0;
+    if (sy !== sx) return sy - sx;
+    return x.days - y.days; // tie-break: recency ascending (AC-16)
+  });
+
+  return list;
 }
