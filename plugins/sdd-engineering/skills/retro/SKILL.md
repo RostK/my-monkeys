@@ -40,22 +40,52 @@ telemetry ledger** that a `SubagentStop` / `Stop` hook appends to as each step r
    | `agent` | agent label; `main` for a `Stop` row. **Never empty** — falls back to the agent id |
    | `agentId` · `session` | correlate rows to a launch and a session |
    | `model` · `status` · `stopReason` | `status` is `completed` / `error` / `unknown` |
+   | `coldStart` | v1.1.1+ · this row bills its transcript from the FIRST entry (no watermark yet) |
    | `inputTokens` · `outputTokens` | fresh (uncached) input, and output |
    | `cacheReadTokens` · `cacheCreationTokens` | **cache-hit % = `cacheReadTokens` ÷ (`inputTokens` + `cacheReadTokens` + `cacheCreationTokens`)** — the cost signal |
    | `tokens` | total billed = input + output + both cache classes |
    | `toolUses` · `durationMs` | tool_use blocks, and wall-clock for that step |
 
+   **Drop phantom `SubagentStop` rows before you count agents.** The harness fires `SubagentStop` for
+   its own internal agents too, not only Task-tool ones — one fires whenever a new user prompt is
+   processed, landing ~2s after the preceding main `Stop`, with no agent behind it.
+   `capture-telemetry.mjs` v1.1.1+ no longer writes them, but **older rows are still in the ledger**
+   (and another machine may still run an older hook), so filter on read. A `SubagentStop` row is a
+   phantom when **both** hold:
+
+   - **Unattributable** — `agent` is empty, or is just the raw `agentId` (a bare hex id, no `:`), and
+   - **No measured work** — `tokens` and `toolUses` are each `0`, `null`, or absent.
+
+   Test both, and treat `null` as `0` here: the phantoms written by the oldest hook have `tokens: null`
+   (not `0`), so a strict `tokens === 0` check silently keeps them. Counting phantoms as agents inflates
+   "N agents launched" by roughly one per user prompt.
+
+   The two halves of the test are what keep real agents safe, so do not collapse it to one:
+   a row with **no work but a real label** is a genuine agent whose transcript was unreadable — keep it
+   and report it `unknown`, never `0` (see the honesty rule); pre-v1.1.0 rows are all-`null` yet real,
+   and their label is what proves it.
+
    **Rows are incremental, so they sum.** Each row counts only what that step spent — a resumed agent
    is not re-billed for its prior context, and a `Stop` row is not re-billed for earlier turns. Sum
-   them directly; do not treat a large row as "probably cumulative".
+   them directly. A `Stop` row of several million tokens is **not** a "cumulative session total": a
+   main-thread turn really does cost that much, because `cacheReadTokens` — the whole conversation,
+   re-read on every API call — dominates it. Do not "correct" for a double-count that isn't there.
+
+   **The one exception: `coldStart: true`.** That row had no watermark, so it billed its transcript
+   from the very first entry. On a `SubagentStop` this is normal and harmless (an agent's transcript
+   *is* exactly one step). On a **`Stop`** row it means the row covers **the whole session up to that
+   point**, not just that turn — it overlaps every earlier `Stop` row of the same session, so adding
+   them together double-counts. Treat it as a session-to-date snapshot: count it alone and drop the
+   earlier `Stop` rows it subsumes (or subtract them from it). A cold start happens when the hook is
+   installed or upgraded mid-session, or when the machine-local `retros/.ledger-state/` is wiped.
+   Rows written before v1.1.1 carry no `coldStart` field — spot one by a `durationMs` far larger than
+   the gap since the previous `Stop` row of that session (a 50-minute duration on a row logged 6
+   minutes after the last one is a cold start, not a 50-minute turn).
 
    **A `Stop` row's `durationMs` is not agent wall-clock.** It spans the whole main-thread turn,
    including time the user spent answering a question, so it is not comparable to a subagent's
    duration. Its *tokens* are real main-thread spend and belong in the totals; its *duration* must
    never feed the parallelism factor (use subagent durations vs run wall-clock for that).
-
-   A row whose token fields are all `0` means the transcript was unreadable, **not** that the step was
-   free — report it `unknown`, never `0`.
 2. **In-context / session records (fallback).** ONLY when the ledger is absent or clearly incomplete
    (hook not installed, or a step ran before it existed), fall back to **this session's own record**:
    each subagent completion notification you received carries a `<usage>` block (`subagent_tokens`

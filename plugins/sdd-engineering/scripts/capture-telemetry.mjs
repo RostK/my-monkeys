@@ -24,6 +24,18 @@
  * file) and only aggregate what is new. Each ledger row is therefore the cost of
  * THAT step alone, and rows sum to the true total.
  *
+ * The one exception is a COLD START — no watermark yet, so the row bills the
+ * transcript from its first entry. Such rows carry `coldStart: true`; on a `Stop`
+ * row that means it covers the whole session so far and does not belong in a sum.
+ *
+ * NOT EVERY SubagentStop IS AN AGENT
+ * The harness also fires `SubagentStop` for its own internal agents. One fires
+ * whenever a new user prompt is processed — so it lands ~2s after the preceding
+ * main `Stop` — carrying `agent_type: ""` and an `agent_transcript_path` that is
+ * never written to disk. Nothing ran and nothing can be billed, so we record no
+ * row for it: `retro` counts `SubagentStop` rows as agents launched, and a
+ * phantom row is an agent that never existed.
+ *
  * Ledger path (first match wins):
  *   1. $SDD_TELEMETRY_LEDGER
  *   2. $CLAUDE_PROJECT_DIR/retros/ledger.jsonl
@@ -217,12 +229,17 @@ function main() {
   const isSubagent = event === 'SubagentStop';
 
   // A subagent bills against its OWN transcript; the main thread against the
-  // session transcript.
+  // session transcript. There is deliberately NO fallback from
+  // `agent_transcript_path` to `transcript_path`: billing the main transcript to
+  // a subagent row would invent that agent's cost out of main-thread turns AND
+  // advance the MAIN watermark, so the real `Stop` row behind it would then
+  // report zero.
   const transcriptPath = isSubagent
-    ? pick(evt.agent_transcript_path, evt.transcript_path)
+    ? pick(evt.agent_transcript_path)
     : pick(evt.transcript_path);
 
   const markPath = transcriptPath ? markPathFor(stateDir, transcriptPath) : null;
+  const mark = markPath ? loadMark(markPath) : null;
   const all = readTranscript(transcriptPath);
 
   // Defensive: on older harness versions subagent turns were inlined into the
@@ -230,16 +247,29 @@ function main() {
   // would double-count them against their own SubagentStop row.
   const scoped = isSubagent ? all : all.filter((e) => e.isSidechain !== true);
 
-  const fresh = sliceNew(scoped, markPath ? loadMark(markPath) : null);
+  const fresh = sliceNew(scoped, mark);
   const usage = aggregate(fresh);
 
-  // The label must never be empty — an unattributable row is a dead row.
-  // agent_type is blank for some launches, so fall back to the transcript's own
-  // attribution, then to the agent id, then to an explicit sentinel.
+  // agent_type can be blank on a real launch, so fall back to the transcript's
+  // own attribution before giving up on a label.
   const attribution = fresh.find((e) => e.attributionAgent)?.attributionAgent;
-  const agent = isSubagent
-    ? pick(evt.agent_type, evt.subagent_type, attribution, evt.agent_id, 'unknown-agent')
+  const label = isSubagent
+    ? pick(evt.agent_type, evt.subagent_type, attribution)
     : 'main';
+
+  // PHANTOM AGENTS — the harness fires `SubagentStop` for its own internal
+  // agents, not only for Task-tool ones. One fires whenever a new user prompt is
+  // processed (its `last_assistant_message` is the user's own prompt text), so it
+  // lands ~2s after the preceding main `Stop`. It carries `agent_type: ""` and an
+  // `agent_transcript_path` that is never written — the session's whole
+  // `subagents/` directory need not even exist. There is no agent behind it and
+  // nothing to bill, so it used to land as an all-zero row labelled with a raw
+  // agent id, and `retro` — which counts `SubagentStop` rows to report "N agents
+  // launched" — counted it as an agent. An event with neither a label nor a
+  // single transcript entry is not an agent.
+  if (isSubagent && !label && scoped.length === 0) return;
+
+  const agent = label ?? pick(evt.agent_id, 'unknown-agent');
 
   const status = usage.apiError
     ? 'error'
@@ -258,6 +288,14 @@ function main() {
     model: usage.model,
     status,
     stopReason: usage.stopReason,
+    // No watermark existed, so this row bills the transcript from its FIRST
+    // entry rather than from the last step. For a subagent that is simply how it
+    // works (its transcript is exactly one step). On a `Stop` row it is a
+    // warning: the row covers the whole session up to that point, not just that
+    // turn, so it must not be summed with the other `Stop` rows of the session.
+    // Happens when the hook is installed or upgraded mid-session, or when
+    // `.ledger-state/` (machine-local, gitignored) is wiped.
+    coldStart: mark === null,
     // Total billed tokens: fresh input + output + both cache classes.
     tokens:
       usage.inputTokens +
