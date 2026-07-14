@@ -21,8 +21,8 @@
     {
       "name": "architecture-review",
       "source": "./plugins/architecture-review",
-      "version": "1.0.0",
-      "description": "Generalized architecture-reviewer agent for structural / topology reviews.",
+      "version": "1.1.0",
+      "description": "Generalized architecture-reviewer agent for structural / topology reviews, plus a /version-check command.",
       "dependencies": [
         { "name": "engineering-paved-path", "version": "^1.0.0" }
       ]

@@ -20,9 +20,19 @@ a module, or a whole branch — and reports how well it holds to architectural i
 - **Don't use** for line-level bug review — that's `/code-review`. For planning, use
   `sdd-engineering`'s `implementation-planner`.
 
+## The `/version-check` command
+
+Reports the version of each installed my-monkeys plugin, compares it against the version pinned in
+the marketplace manifest, and flags anything stale — the quickest way to confirm that a
+`/plugin marketplace update` actually reached your machine. Read-only.
+
+```
+/version-check
+```
+
 ## Usage
 
-Claude invokes it automatically for structural reviews, or call it explicitly:
+Claude invokes the agent automatically for structural reviews, or call it explicitly:
 
 ```
 @architecture-review:architecture-reviewer  review the structure of this branch
