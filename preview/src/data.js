@@ -27,7 +27,6 @@ function daysSince(iso) {
 export const DATA = catalog.artifacts.map((a) => ({
   ...a,
   days: daysSince(a.updatedAt),
-  haystack: (a.displayName + " " + a.name + " " + a.description + " " + a.tags.join(" ") + " " + a.plugin).toLowerCase(),
 }));
 
 export const TYPES = ["skill", "command", "agent", "plugin"];
