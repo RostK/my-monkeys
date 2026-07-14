@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { fmtAge } from "../data.js";
 import { TypeIcon, CloseIcon } from "../icons.jsx";
 import { t } from "../strings.js";
@@ -42,7 +43,7 @@ export default function WhatsNew({ items, onOpen }) {
         {hasFresh && <span className="wn-dot" aria-hidden="true" />}
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           className="modal-back"
           role="dialog"
@@ -84,7 +85,8 @@ export default function WhatsNew({ items, onOpen }) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
