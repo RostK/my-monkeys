@@ -6,11 +6,11 @@ run steps live in the project docs — only hard-won, non-obvious things belong 
 
 ## What Works
 
-_(nothing recorded yet)_
+- 2026-07-14 — Index construction is dominated by `processTerm` running per-token over the whole corpus (~36,800 token occurrences across 29 SKILL.md bodies), **not** by MiniSearch's constructor (~0.02 ms). So the lever for the ≤50 ms index-build budget is **memoizing `normalizeTerm` in a module-level `Map`** — it is a pure function of its input string, so the cache changes **no ranking behaviour at all**, and natural-language corpora repeat tokens heavily. Took the median from ~30 ms to ~20 ms. Reach for this before touching what gets indexed (truncating bodies would cost real recall). Evidence: `preview/src/lib/searchConfig.js:125,135`.
 
 ## What Doesn't Work
 
-_(nothing recorded yet)_
+- 2026-07-14 — **A hand-rolled stemmer that tests `-es` before `-s` silently SPLITS singular from plural.** `"tables" → "tabl"` while `"table" → "table"`, because the `-es` branch eats the final `e`; same for file/files, type/types, name/names, rule/rules, mode/modes, note/notes. Since `processTerm` runs at **both index and query time**, both sides shift and the two forms become different terms that never meet — the stemmer partitions the corpus it exists to unify, which is *worse than no stemmer*. Exact-mode `"table"` returned 11 documents and `"tables"` returned 3. In English, `-es` is only a plural suffix after **s/x/z/ch/sh** (buses, boxes, matches); everything else takes plain `-s`. **Fuzzy mode's prefix matching HIDES this** (`"tabl"` is a prefix of `"table"`), so a golden suite of fuzzy queries will pass while Exact mode quietly loses documents — always regression-test stemming in Exact mode, where nothing masks it. Evidence: `preview/src/lib/searchConfig.js:92-98`.
 
 ## Codebase Patterns
 
@@ -30,10 +30,13 @@ _(nothing recorded yet)_
 
 ## Recurring Errors & Fixes
 
-_(nothing recorded yet)_
+- 2026-07-14 — **`SyntaxError: Invalid or unexpected token` pointing at a file's own import line, only on Windows** = a `#!/usr/bin/env node` shebang in an `.mjs` file that a vitest test `import`s. Vite's hashbang regex is `/^#!.*\n/`, which does **not** match `\r\n`; with `core.autocrlf=true` a Windows checkout turns the shebang into `#!…node\r`, Vite stops recognising it, import-hoisting inserts code *above* line 1, and the file becomes genuinely invalid JS. The error names the wrong file and the wrong line. **CI (Linux, LF) stays green**, so this ships silently and breaks only Windows contributors — here it deleted the four AC-27 guard tests whose entire job is proving no LLM call can enter the build. Fix: no shebang on any `.mjs` that a test imports (invoke it as `node scripts/x.mjs`), and `.gitattributes` pins `*.mjs`/`*.js` to LF. Evidence: `.gitattributes:4-5`, `preview/scripts/gen-keywords.mjs`.
+- 2026-07-14 — **Benchmarks against `search.js` must bust its cache before every timed sample.** `rankedScores` keeps a single-slot cache keyed on `mode + "::" + q`, so N identical back-to-back calls make samples 2..N near-free cache hits and the median hides the only call that did real work — a genuine 125 ms first call once measured as a 0.008 ms median. Issue a unique throwaway query before each sample. Related: vitest's file parallelism inflates timing (index build measured ~20 ms isolated but 34–42 ms while 10 other test files competed for CPU, enough to blow a 50 ms budget) — `poolOptions.forks.maxForks: 2` bounds the contention without serialising the suite. Evidence: `preview/src/lib/search.js:63-76`, `preview/src/lib/perf.test.js:54-57`, `preview/vitest.config.js:31`.
+- 2026-07-14 — **A literal NUL byte (`0x00`) in a source string makes git classify the whole file as BINARY** — `git diff` shows `Bin 2044 -> 4448 bytes`, `--numstat` shows `-  -`, and you permanently lose line diffs, `git blame`, and inline PR review comments on that file. It arrived here as a cache-key separator (`mode + "\0" + q`) and went unnoticed through a full review because the code *works*. If a diffstat ever says `Bin` for a text file, scan it for NULs. Use an ordinary printable separator (`"::"`). Evidence: `preview/src/lib/search.js:65-76`.
 
 ## Session Notes
 
+- 2026-07-14 — Implemented SPEC-01/PLAN-01 (MiniSearch BM25 engine + committed keyword sidecar; 7 task units, 98 tests, bundle +9,347 B of a 12,288 B ceiling). **The durable lesson is about verification, not search:** a fully green suite AND a clean 30/30 acceptance-criteria audit both passed while Exact mode was silently losing documents (the stemmer bug above). Every AC the spec wrote for Exact mode was genuinely met — the spec simply never thought to ask about plurals ending in `e`. Two of the three real bugs this run surfaced were invisible to CI by construction (the Windows-only shebang break; a NUL byte that cost reviewability, not behaviour). **Requirements coverage is not correctness, and green-on-CI is not green-everywhere** — the adversarial correctness pass and actually driving the app in a browser each caught things the test suite structurally could not.
 - 2026-07-14 — Spec'd the search overhaul (BM25 lexical engine + build-time keyword vocabulary); authored `specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md`. No app code changed. Grounding turned up that the UI copy in `preview/src/strings.js` advertises `"Smart = semantic ranking · Exact = keyword only"` — **no semantic ranking exists or ever shipped**; `Smart` merely searches more fields than `Exact`. General lesson: the UI strings in this app have drifted ahead of what the code does, so treat user-facing copy as a claim to verify, not as documentation.
 
 ## Open Questions
