@@ -1,7 +1,7 @@
 {
   "name": "architecture-review",
   "displayName": "Architecture Review",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Generalized architecture-reviewer agent — read-only structural / topology review of a diff, module, or branch, tiering findings Violation/Smell/Nit with path:line citations.",
   "author": { "name": "RostK", "email": "rkaniuchenko@gmail.com" },
   "keywords": ["architecture", "review", "onion", "structure", "read-only"],
