@@ -54,17 +54,24 @@ export function readSidecar(path = KEYWORDS_PATH) {
   return raw;
 }
 
+// Normalizes CRLF and lone CR line endings to LF so the hash reflects
+// *content*, not the line endings a given checkout happened to produce
+// (Windows core.autocrlf vs Linux CI both hash a source `.md` file's body/
+// description — those must never disagree on the same logical content).
+const normalizeLineEndings = (s) => String(s ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
 /**
  * The ONE content-hash definition, used both when authoring the sidecar and
  * when validating it at build time. Deliberately EXCLUDES `updatedAt` /
  * `gitDate` (those change on every commit touching the file) and `tags`
  * (tags and keywords are independent) — only the fields that define what the
- * artifact actually IS.
+ * artifact actually IS. Line endings are normalized to LF before hashing so
+ * the same content hashes identically regardless of checkout platform.
  */
 export function contentHashOf(artifact) {
-  const displayName = artifact?.displayName ?? "";
-  const description = artifact?.description ?? "";
-  const body = artifact?.body ?? "";
+  const displayName = normalizeLineEndings(artifact?.displayName ?? "");
+  const description = normalizeLineEndings(artifact?.description ?? "");
+  const body = normalizeLineEndings(artifact?.body ?? "");
   const digest = createHash("sha256").update(`${displayName}\n${description}\n${body}`, "utf8").digest("hex");
   return `sha256:${digest}`;
 }

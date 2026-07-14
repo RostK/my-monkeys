@@ -16,7 +16,7 @@
         "stack-specific best practices",
         "onboarding skill set"
       ],
-      "contentHash": "sha256:c4d14560aa64f05ca4c590534da1b260b791426c4d0c9b4494004bcdb4b0f137",
+      "contentHash": "sha256:978521809743a374cc9684cb50a3718fb3946a51971c2c9cf6da1da394f02218",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/drizzle-orm-patterns": {
@@ -35,7 +35,7 @@
         "sqlite queries",
         "crud operations"
       ],
-      "contentHash": "sha256:52131ddb3986f3dec904d1db40972bbc572628635ad879f1b8b3e1b7c0278a83",
+      "contentHash": "sha256:6817588477042de06a8888b41fd8c56dc15f178355d3be9cba39d1243b39eb26",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/engineering-insights": {
@@ -52,7 +52,7 @@
         "avoid repeating mistakes",
         "knowledge base for a codebase"
       ],
-      "contentHash": "sha256:89f9bd1e878897a25a38363690f1fb61929ee38d712e963ddd62909a40090a69",
+      "contentHash": "sha256:4df9d224edcadd011201a4ae172164fcf2837a949c0fa353fff31ecf3c08aed1",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/fastify-best-practices": {
@@ -70,7 +70,7 @@
         "server error handling",
         "backend performance tuning"
       ],
-      "contentHash": "sha256:3cc6c185a6b26b348f429c720b6598400e288ca1f087875e7d672d940a675375",
+      "contentHash": "sha256:712c82555b9601bd600aa0b253dbad5f432a5c32b6a3f633978ebcf080c5a690",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/frontend-ui-architecture": {
@@ -88,7 +88,7 @@
         "next.js app router layout",
         "code organization"
       ],
-      "contentHash": "sha256:32e44bf0e9e22c7cae67739ac1ec4eeac517617a8f2fdd86ea3dcd0db0f44d6b",
+      "contentHash": "sha256:4b3cb90ec51f91a302ec8626a82248c22bfb083769fbacafc29f8f404854676c",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/next-best-practices": {
@@ -107,7 +107,7 @@
         "middleware to proxy rename",
         "self hosting nextjs"
       ],
-      "contentHash": "sha256:2f4859ef77e27cf3a49c282a74b079f47ee7de9cf236c68b7a6cb8df10fe5cc7",
+      "contentHash": "sha256:9121bb338478ce81aba4bb06ba0dbfcac6c14654dd4229272c9e516daa4c5377",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/onion-architecture": {
@@ -125,7 +125,7 @@
         "adapter interfaces",
         "module boundaries for backend"
       ],
-      "contentHash": "sha256:86c3f4e7c8ed7d4adc3fcc3eb542ac46cff9b100d36c618e21b1c9241d822f71",
+      "contentHash": "sha256:fd55b97fb6d8ff568bd5a826690fcc1ede40b3e1b93747ff4defa3938d3bf714",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/postgresql-table-design": {
@@ -143,7 +143,7 @@
         "timestamptz vs timestamp",
         "postgres gotchas"
       ],
-      "contentHash": "sha256:a6190def984e7c207f62a2787c7fe9941097864071d5b924319d30e210ed468d",
+      "contentHash": "sha256:4f329f1e52a370c7c797baa101cec84ec7ef1e53e20232c03ecd435bb4a1f555",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/pr-self-review": {
@@ -160,7 +160,7 @@
         "gate the pull request",
         "review changes before they leave the machine"
       ],
-      "contentHash": "sha256:d11c83229a076e4efd999824537a245dd6ded4d79d8dc8fa751dd0702c20c2aa",
+      "contentHash": "sha256:f11713f9ec8a17f8593a637ad7640144f09708da033064fe016ae35921554601",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/react-best-practices": {
@@ -178,7 +178,7 @@
         "key prop pitfalls",
         "error boundaries"
       ],
-      "contentHash": "sha256:3f2f29cd92eb42b8fd809a171846a4bf69d0b5e61a57ed8de20f30907d329005",
+      "contentHash": "sha256:d328d76adc2c289920820f3fbb4c656bdcc4c1206578729f6ec8963ad329d2d1",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/react-testing-library": {
@@ -196,7 +196,7 @@
         "jsdom test environment",
         "test file conventions"
       ],
-      "contentHash": "sha256:6191de92e66f13df9e45dab78fabdf7d4ad7562097a3097dc20d19d285551d0c",
+      "contentHash": "sha256:821922b84154fcac76864dfc92b22e0ed27b54c3783734eae5d7cd0a6d1ef543",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/security": {
@@ -214,7 +214,7 @@
         "rate limiting",
         "security headers"
       ],
-      "contentHash": "sha256:95e3a7fd4337fadea2507165126fb236500f5138ecfb4c7a92ae1370a13c325b",
+      "contentHash": "sha256:d9a9d8249629f1bdb3577935e8e09e0397f184d06284b90b472d10021910a1ac",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/typescript-expert": {
@@ -232,7 +232,7 @@
         "type testing",
         "advanced typescript patterns"
       ],
-      "contentHash": "sha256:b0699d294103a33acfb95c5e243a98ebcb600ae6f2229b5c69a2bf224540d4a8",
+      "contentHash": "sha256:ec7acd455946d580894fa06a412451bdfc8a3e97b06abb271067654ea54a9d2f",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "engineering-paved-path/skill/zod": {
@@ -249,7 +249,7 @@
         "data transforms and refinements",
         "bundle size optimization for schemas"
       ],
-      "contentHash": "sha256:cf6367fea5cb5404416507afd7364737712b290070c7051b81f3e177ee50372c",
+      "contentHash": "sha256:c0d2bc6034ae05dc76a31dd3c7c6a5eb89cdb252d47b68b160453b9dcecf2d30",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "research-tools/plugin/research-tools": {
@@ -265,7 +265,7 @@
         "safe to run anywhere",
         "investigation plugin"
       ],
-      "contentHash": "sha256:777c5d70f54ebafc94806cd3a1764b787e42afa185444297b799115a4043548b",
+      "contentHash": "sha256:c57e9a2f56e8f02613d9c35cce0fe5ee9bd3f426336f872149246309d2a33f4a",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "research-tools/agent/researcher": {
@@ -282,7 +282,7 @@
         "does not write or edit files",
         "clarify ambiguous questions"
       ],
-      "contentHash": "sha256:aaf05dca37ffc6ca04daff3bc09af39e80d9c2f9b747d26e9317aa5e2e4577cf",
+      "contentHash": "sha256:6ed371be4384b65b15e804512993c6153e6382f736d6e2c7fcdf15206e7e3a2b",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "architecture-review/plugin/architecture-review": {
@@ -298,7 +298,7 @@
         "branch review",
         "architectural invariants"
       ],
-      "contentHash": "sha256:d5f56c5c6978f45739416be091b676c4125c4a91f702cc308ed7e30838f82b07",
+      "contentHash": "sha256:33b9a6731ba2a1e0520a7aaaa0b3ddef12bd8b65a6d92ebf5ff753012e1de65b",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "architecture-review/agent/architecture-reviewer": {
@@ -314,7 +314,7 @@
         "not a line-level bug review",
         "topology and invariants check"
       ],
-      "contentHash": "sha256:fd381f747f1b9ae116d46279aa863d020971e6093bdf0c2ef191a1e81c333cb2",
+      "contentHash": "sha256:683c2783a169b65e647270b984b48d8e8a49889c4ecba765769221e25392915a",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "architecture-review/command/version-check": {
@@ -328,7 +328,7 @@
         "verify plugin upgrade",
         "list installed plugin versions"
       ],
-      "contentHash": "sha256:897657dbd52c2b70ffadd924bbd66b5eba5814c801f9eeaa60cfe2b0fd101052",
+      "contentHash": "sha256:cde15b41946d4afadd3bc6c16a5047c6276b657a8d66a3d52b66b195b9eec288",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "sdd-engineering/plugin/sdd-engineering": {
@@ -344,7 +344,7 @@
         "structured feature delivery process",
         "multi-agent build pipeline"
       ],
-      "contentHash": "sha256:6950dbf8fc37e67de8159013b6f4ddbe831780ca74c98ce202e7c6d54d858090",
+      "contentHash": "sha256:c1581c5d011ce407f0cf5dd8c1b957e344a0dfee35c65816eb044b23211f4fca",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "sdd-engineering/skill/plan-implementation": {
@@ -360,7 +360,7 @@
         "between spec and build",
         "task unit breakdown"
       ],
-      "contentHash": "sha256:f3eef7eb62b7204ba0310a00e283be312475520f91a5fa3b8ff7555cf85e5635",
+      "contentHash": "sha256:be7f7ee2ce79ac423586b7801b02940a9a62c90d9436bb9cb7d399559ea6f371",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "sdd-engineering/skill/requirements-engineering": {
@@ -376,7 +376,7 @@
         "non-goals and moscow",
         "what is missing from this spec"
       ],
-      "contentHash": "sha256:daaccba2f0fcc03dd5bdf9557f8264a9616ca538593f1899af1f1a52425f988a",
+      "contentHash": "sha256:b03e6bae78d4ab947abf247a649b24ba155c01955076a6662e0730302d4e80f0",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "sdd-engineering/skill/retro": {
@@ -392,7 +392,7 @@
         "duplicated context across agents",
         "post-run evaluation"
       ],
-      "contentHash": "sha256:7efcccd30b295407e37a9eee9c9280dfda89060c5f6bc3159dd0c6018aa4b158",
+      "contentHash": "sha256:7a3ca08b819b8f51d0f4d271062015d80bbf3442a3305742d32e391714da18c1",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "sdd-engineering/skill/run-plan": {
@@ -408,7 +408,7 @@
         "orchestrate code build from a plan",
         "bounded fix iterations"
       ],
-      "contentHash": "sha256:a5949cf052572ca7ae2553abbbf05b557e6daaf10e0d202df690947fff232e36",
+      "contentHash": "sha256:ee52266d77af9f23b36a2b5bbe11df3cf74b305c3782bc9d98246d09d17470f1",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "sdd-engineering/skill/write-spec": {
@@ -423,7 +423,7 @@
         "requirements before planning",
         "spec authoring workflow"
       ],
-      "contentHash": "sha256:b424d95e900aa18abba79ed9aebdc82465d29ea5559e9054be5892d262173b2d",
+      "contentHash": "sha256:7f5691c98789a9588f9bbfa66ca448436e664522aae8b722fdc25c0182bd8d23",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "sdd-engineering/agent/implementation-planner": {
@@ -439,7 +439,7 @@
         "multi-agent execution recommendation",
         "plan before writing code"
       ],
-      "contentHash": "sha256:b7fa29227752064fc4e9bf3b5c45b5cce21a115af52cdf2af66687cc56c8c2df",
+      "contentHash": "sha256:c9844410c586dab2772301ec3eaf0b06ddbfabd7958b17a65d07cd2122116006",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "sdd-engineering/agent/implementer": {
@@ -454,7 +454,7 @@
         "file-scoped task execution",
         "plan-driven coding agent"
       ],
-      "contentHash": "sha256:dd4271820059be78cb0f4f307f2d5bac76a888c91603a929990e52deff5fd8fd",
+      "contentHash": "sha256:9e056533c8e54aa9cc7b7c7c73f39a7ad7d8f7efed8e977f8e99696eb12c3d46",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "sdd-engineering/agent/plan-verifier": {
@@ -469,7 +469,7 @@
         "done-ness check",
         "not found vs implemented verdicts"
       ],
-      "contentHash": "sha256:6607f777d40df989406b61c175b4ada6f30a7ef44f9b3de59711dcc4909bf513",
+      "contentHash": "sha256:67b059e1e6a7a3ffefb2018c1ecc302cc0a65e2ce3267e959b699415d51632f4",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     },
     "sdd-engineering/agent/spec-creator": {
@@ -485,7 +485,7 @@
         "headless spec draft",
         "not the how just the what"
       ],
-      "contentHash": "sha256:2bd7d8992d089ccbba070dd96796988f1393ab22650a99f7082fc349de1aac3a",
+      "contentHash": "sha256:280c374ffd30e473cf3551f6f08c9c5f803d00091b2d1f89b9c1b671f7aaa1f3",
       "generatedAt": "2026-07-14T00:00:00.000Z"
     }
   }

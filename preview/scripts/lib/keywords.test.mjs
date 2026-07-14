@@ -50,6 +50,24 @@ describe("contentHashOf", () => {
     expect(() => contentHashOf(baseArtifact({ body: "" }))).not.toThrow();
     expect(() => contentHashOf({ displayName: "X", description: "Y" })).not.toThrow();
   });
+
+  it("is line-ending agnostic: CRLF and LF renderings of the SAME content hash identically", () => {
+    // Regression for the cross-platform hash-drift bug: source `.md` files
+    // checkout as CRLF on Windows (core.autocrlf) and LF on Linux CI, so a
+    // content hash that doesn't normalize line endings produces two
+    // different hashes for the exact same logical content.
+    const lfArtifact = baseArtifact({
+      displayName: "Example\nSkill",
+      description: "An example skill\nfor testing.",
+      body: "# Example\n\nSome body content.\nSecond line.",
+    });
+    const crlfArtifact = baseArtifact({
+      displayName: "Example\r\nSkill",
+      description: "An example skill\r\nfor testing.",
+      body: "# Example\r\n\r\nSome body content.\r\nSecond line.",
+    });
+    expect(contentHashOf(crlfArtifact)).toBe(contentHashOf(lfArtifact));
+  });
 });
 
 describe("attachKeywords", () => {
