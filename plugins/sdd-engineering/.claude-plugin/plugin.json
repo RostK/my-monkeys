@@ -1,7 +1,7 @@
 {
   "name": "sdd-engineering",
   "displayName": "SDD Engineering",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Spec-Driven Development engineering workflow: spec-creator to implementation-planner to run-plan (implementer + plan-verifier + architecture-reviewer) to retro, with durable per-step harness telemetry.",
   "author": { "name": "RostK", "email": "rkaniuchenko@gmail.com" },
   "keywords": ["sdd", "spec-driven-development", "planning", "implementation", "verification", "retro"],
