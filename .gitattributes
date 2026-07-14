@@ -1,3 +1,5 @@
 # Normalize line endings; keep shell scripts LF so their shebang works on Windows checkouts.
 * text=auto
 *.sh text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf

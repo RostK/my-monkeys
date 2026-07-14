@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * gen-keywords.mjs — the HUMAN-INVOKED keyword generator. Calls the Anthropic
  * Messages API to (re)generate the `keywords` sidecar
