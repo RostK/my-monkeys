@@ -60,6 +60,12 @@ export const t = {
     close: "Close",
     copyLink: "Copy link",
   },
+  install: {
+    label: "install",
+    cli: "CLI",
+    code: "Claude Code",
+    hint: "CLI = run in a terminal · Claude Code = slash command inside a session",
+  },
   toast: {
     copiedPrefix: "Copied:",
     copied: "Copied",
