@@ -353,7 +353,14 @@ aside .facet {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 16px;
+}
+.results-meta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
 }
 .results-count {
   color: var(--text-dim);
@@ -756,9 +763,18 @@ aside .facet {
 }
 .modal-actions {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border-soft);
+}
+.modal-actions .install-toggle {
+  align-self: flex-start;
+}
+.install-row {
+  display: flex;
+  gap: 10px;
 }
 .install-box {
   flex: 1;
