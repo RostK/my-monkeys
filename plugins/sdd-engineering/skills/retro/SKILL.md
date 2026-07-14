@@ -28,11 +28,34 @@ telemetry ledger** that a `SubagentStop` / `Stop` hook appends to as each step r
 
 1. **Durable ledger (primary).** Read the telemetry ledger — default **`retros/ledger.jsonl`** under
    the project root (use the project's configured path if different). It is append-only JSONL, one
-   record per agent/step as it completed, each carrying: agent label, phase, model / tier, status
-   (`completed` / `failed` / `killed`), token counts (input / output / `cache_read`), `tool_uses`,
-   `duration_ms`, and a launch / parent id. Parse it with a small script and **aggregate** — extract
+   record per agent/step as it completed. Parse it with a small script and **aggregate** — extract
    only the usage fields; never emit raw records that would overflow context. Because it survives the
    chat boundary, it captures steps run in *other* sessions, which is the whole point.
+
+   Each record (written by `scripts/capture-telemetry.mjs`, v1.1.0+):
+
+   | key | meaning |
+   |---|---|
+   | `event` | `SubagentStop` (one agent) or `Stop` (one main-thread turn) |
+   | `agent` | agent label; `main` for a `Stop` row. **Never empty** — falls back to the agent id |
+   | `agentId` · `session` | correlate rows to a launch and a session |
+   | `model` · `status` · `stopReason` | `status` is `completed` / `error` / `unknown` |
+   | `inputTokens` · `outputTokens` | fresh (uncached) input, and output |
+   | `cacheReadTokens` · `cacheCreationTokens` | **cache-hit % = `cacheReadTokens` ÷ (`inputTokens` + `cacheReadTokens` + `cacheCreationTokens`)** — the cost signal |
+   | `tokens` | total billed = input + output + both cache classes |
+   | `toolUses` · `durationMs` | tool_use blocks, and wall-clock for that step |
+
+   **Rows are incremental, so they sum.** Each row counts only what that step spent — a resumed agent
+   is not re-billed for its prior context, and a `Stop` row is not re-billed for earlier turns. Sum
+   them directly; do not treat a large row as "probably cumulative".
+
+   **A `Stop` row's `durationMs` is not agent wall-clock.** It spans the whole main-thread turn,
+   including time the user spent answering a question, so it is not comparable to a subagent's
+   duration. Its *tokens* are real main-thread spend and belong in the totals; its *duration* must
+   never feed the parallelism factor (use subagent durations vs run wall-clock for that).
+
+   A row whose token fields are all `0` means the transcript was unreadable, **not** that the step was
+   free — report it `unknown`, never `0`.
 2. **In-context / session records (fallback).** ONLY when the ledger is absent or clearly incomplete
    (hook not installed, or a step ran before it existed), fall back to **this session's own record**:
    each subagent completion notification you received carries a `<usage>` block (`subagent_tokens`
