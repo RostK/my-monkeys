@@ -120,12 +120,38 @@ describe("findForbiddenIndexAssets (AC-29)", () => {
     expect(offenders.some((f) => f.endsWith("minisearch.bin"))).toBe(true);
   });
 
-  it("flags ANY stray .json file, since the app ships its catalog bundled into JS, never as a file", () => {
+  it("does NOT flag a legitimate static .json asset copied verbatim from public/ (e.g. manifest.json)", () => {
     makeDist(fixtureRoot, {
       assets: { "index-abc123.js": "x" },
-      extra: { "unrelated-data.json": "{}" },
+      extra: {
+        "manifest.json": JSON.stringify({ name: "Preview", short_name: "Preview", icons: [] }),
+        ".well-known/security.json": JSON.stringify({ contact: "security@example.com" }),
+      },
     });
-    expect(findForbiddenIndexAssets(fixtureRoot)).toEqual([join(fixtureRoot, "unrelated-data.json")]);
+    expect(findForbiddenIndexAssets(fixtureRoot)).toEqual([]);
+  });
+
+  it("flags a serialized MiniSearch index by CONTENT even under an innocuous filename, catching a disguised dump", () => {
+    // A real MiniSearch.toJSON() shape (lucaong/minisearch v7.2.0), saved
+    // under a name that would NOT match the /search.?index/i or /minisearch/i
+    // name heuristics.
+    const serializedIndex = JSON.stringify({
+      documentCount: 1,
+      nextId: 1,
+      documentIds: { 0: 1 },
+      fieldIds: { title: 0 },
+      fieldLength: { 0: [2] },
+      averageFieldLength: [2],
+      storedFields: {},
+      dirtCount: 0,
+      index: [["hello", { 0: { 0: 1 } }]],
+      serializationVersion: 2,
+    });
+    makeDist(fixtureRoot, {
+      assets: { "index-abc123.js": "x" },
+      extra: { "data.json": serializedIndex },
+    });
+    expect(findForbiddenIndexAssets(fixtureRoot)).toEqual([join(fixtureRoot, "data.json")]);
   });
 
   it("returns [] when the dist directory itself does not exist", () => {
@@ -202,6 +228,57 @@ describe("runCheck (integration of both gates against a fixture dist + budget)",
     }).not.toThrow();
     expect(result.ok).toBe(false);
     expect(result.messages[0]).toMatch(/dist directory not found/);
+  });
+
+  it("PASSES a build that ships a legitimate static .json asset (e.g. manifest.json) copied verbatim from public/", () => {
+    const distDir = join(fixtureRoot, "dist");
+    makeDist(distDir, {
+      assets: { "index-x.js": "console.log(1)" },
+      indexHtml: "<html></html>",
+      extra: { "manifest.json": JSON.stringify({ name: "Preview" }) },
+    });
+    const totalGzipBytes = sumGzippedDistBytes(distDir);
+    const budgetPath = writeBudget(fixtureRoot, { baselineGzipBytes: totalGzipBytes, maxDeltaBytes: 1000 });
+
+    const result = runCheck({ distDir, budgetPath });
+    expect(result.ok).toBe(true);
+    expect(result.messages.some((m) => m.includes("OK — no pre-serialized"))).toBe(true);
+  });
+
+  // Finding 2: runCheck() must never throw for an ordinary pass/fail — the
+  // docstring promises it, and the dist-directory check seven lines above
+  // already applies exactly this guard. A missing/malformed budget file is a
+  // genuinely broken state (the budget is a committed artifact), so it must
+  // still FAIL — just cleanly, as a structured { ok: false, messages } result
+  // instead of a raw ENOENT/SyntaxError stack trace.
+  it("reports a clean failure (not a throw) when dist-budget.json is missing", () => {
+    const distDir = join(fixtureRoot, "dist");
+    makeDist(distDir, { assets: { "index-x.js": "console.log(1)" }, indexHtml: "<html></html>" });
+    const missingBudgetPath = join(fixtureRoot, "does-not-exist-budget.json");
+
+    let result;
+    expect(() => {
+      result = runCheck({ distDir, budgetPath: missingBudgetPath });
+    }).not.toThrow();
+    expect(result.ok).toBe(false);
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0]).toMatch(/budget file not found/);
+    expect(result.messages[0]).toContain(missingBudgetPath);
+  });
+
+  it("reports a clean failure (not a throw) when dist-budget.json is malformed JSON", () => {
+    const distDir = join(fixtureRoot, "dist");
+    makeDist(distDir, { assets: { "index-x.js": "console.log(1)" }, indexHtml: "<html></html>" });
+    const budgetPath = join(fixtureRoot, "dist-budget.json");
+    writeFileSync(budgetPath, "{ not valid json ");
+
+    let result;
+    expect(() => {
+      result = runCheck({ distDir, budgetPath });
+    }).not.toThrow();
+    expect(result.ok).toBe(false);
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0]).toMatch(/not valid JSON/);
   });
 });
 

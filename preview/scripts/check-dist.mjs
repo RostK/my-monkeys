@@ -10,10 +10,14 @@
  *      always GLOBBED — never hard-coded.
  *  (b) AC-29 no-serialized-index — the MiniSearch index is built in the
  *      browser from the bundled catalog (see src/lib/search.js); nothing
- *      pre-serialized (e.g. `MiniSearch.toJSON()`) may ship. Fails if any
- *      file under dist looks like a serialized index, or is a stray .json
- *      file (the app never intentionally ships one — the catalog is
- *      `import`ed into JS, not copied as a file).
+ *      pre-serialized (e.g. `MiniSearch.toJSON()`) may ship. Fails if a file
+ *      under dist LOOKS like a serialized search index — by name
+ *      (`search-index.*`, `*minisearch*`) or by CONTENT (a `.json` file
+ *      whose shape matches `MiniSearch.toJSON()` output, regardless of its
+ *      filename). Deliberately does NOT flag every `.json` file — Vite
+ *      copies `public/` verbatim into dist, so a legitimate static asset
+ *      (`manifest.json`, `.well-known/*.json`) must ship without tripping
+ *      this gate.
  *
  * Every exported function below is pure/fs-only and fixture-testable without
  * a real build — see check-dist.test.mjs.
@@ -72,11 +76,40 @@ export function evaluateBudget({ totalGzipBytes, baselineGzipBytes, maxDeltaByte
 }
 
 /**
- * AC-29 guard: flags any file anywhere under `distDir` whose name suggests a
- * pre-serialized search index (`MiniSearch.toJSON()` output would be JSON),
- * plus any stray `.json` file in general — this app never intentionally
- * ships one (the catalog is bundled into JS via `import`, not copied as a
- * file; see src/data.js).
+ * Content-shape check: does this string parse as JSON that looks like
+ * `MiniSearch.toJSON()` output? Real MiniSearch (v7.2.0, pinned in
+ * package.json) dumps a distinctive, stable shape — `documentCount`,
+ * `serializationVersion`, an `index` array of `[term, postings]` pairs, and a
+ * `fieldIds` map. A legitimate static asset (e.g. `manifest.json`) will not
+ * accidentally carry all four. Never throws — malformed/non-JSON content
+ * simply doesn't match.
+ */
+function looksLikeSerializedMiniSearchIndex(content) {
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return false;
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+  return (
+    typeof parsed.documentCount === "number" &&
+    typeof parsed.serializationVersion === "number" &&
+    Array.isArray(parsed.index) &&
+    parsed.fieldIds !== null &&
+    typeof parsed.fieldIds === "object"
+  );
+}
+
+/**
+ * AC-29 guard: flags a file anywhere under `distDir` that LOOKS like a
+ * pre-serialized search index — either by NAME (`search-index.*`,
+ * `*minisearch*`, catching an obviously-named dump even before opening it)
+ * or by CONTENT (a `.json` file whose shape matches `MiniSearch.toJSON()`
+ * output, catching a renamed/disguised dump the name check would miss).
+ * Deliberately narrower than "every `.json` file under dist" — Vite copies
+ * `public/` verbatim into dist, and a legitimate static JSON asset must not
+ * fail this gate (see check-dist.test.mjs).
  */
 export function findForbiddenIndexAssets(distDir) {
   if (!existsSync(distDir)) return [];
@@ -87,9 +120,10 @@ export function findForbiddenIndexAssets(distDir) {
       if (entry.isDirectory()) {
         walk(abs);
       } else if (entry.isFile()) {
-        const looksLikeIndex = /search.?index/i.test(entry.name) || /minisearch/i.test(entry.name);
+        const looksLikeIndexByName = /search.?index/i.test(entry.name) || /minisearch/i.test(entry.name);
         const isJson = extname(entry.name).toLowerCase() === ".json";
-        if (looksLikeIndex || isJson) offenders.push(abs);
+        const looksLikeIndexByContent = isJson && looksLikeSerializedMiniSearchIndex(readFileSync(abs, "utf8"));
+        if (looksLikeIndexByName || looksLikeIndexByContent) offenders.push(abs);
       }
     }
   };
@@ -119,7 +153,29 @@ export function runCheck({ distDir = DEFAULT_DIST_DIR, budgetPath = DEFAULT_BUDG
     };
   }
 
-  const budget = JSON.parse(readFileSync(budgetPath, "utf8"));
+  if (!existsSync(budgetPath)) {
+    return {
+      ok: false,
+      messages: [
+        `[check-dist] budget file not found at ${budgetPath} — dist-budget.json is a committed artifact; ` +
+          `restore it (e.g. "git checkout -- dist-budget.json") before running this check.`,
+      ],
+    };
+  }
+
+  let budget;
+  try {
+    budget = JSON.parse(readFileSync(budgetPath, "utf8"));
+  } catch (err) {
+    return {
+      ok: false,
+      messages: [
+        `[check-dist] budget file at ${budgetPath} is not valid JSON (${err.message}) — dist-budget.json is a ` +
+          `committed artifact; fix or restore it (e.g. "git checkout -- dist-budget.json") before running this check.`,
+      ],
+    };
+  }
+
   const { baselineGzipBytes, maxDeltaBytes } = budget;
   const totalGzipBytes = sumGzippedDistBytes(distDir);
   const { delta, pass: budgetPass } = evaluateBudget({ totalGzipBytes, baselineGzipBytes, maxDeltaBytes });
