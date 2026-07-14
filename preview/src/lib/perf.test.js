@@ -16,6 +16,15 @@ import { GOLDEN_QUERIES } from "./golden-queries.js";
 
 const ITERATIONS = 7;
 
+// FINDING 5: AC-30 is the single most contention-sensitive budget in this
+// file (it's timing a construction that itself only takes ~2-3ms, so noise
+// from other test files' CPU usage dominates proportionally more than it
+// does for the ~100ms-budget AC-22/E-7 checks). A larger sample count is the
+// honest way to widen the margin — see this file's header — paired with the
+// `poolOptions.forks.maxForks` cap in vitest.config.js that bounds how much
+// contention there is in the first place.
+const AC30_ITERATIONS = 15;
+
 function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -53,9 +62,9 @@ function bustRankedScoresCache(engine, salt) {
 }
 
 describe("AC-30: index construction over the real 29-doc corpus completes in <50ms", () => {
-  it("median (7 iterations) build time over DATA is under the 50ms budget", () => {
+  it(`median (${AC30_ITERATIONS} iterations) build time over DATA is under the 50ms budget`, () => {
     const samples = [];
-    for (let i = 0; i < ITERATIONS; i++) {
+    for (let i = 0; i < AC30_ITERATIONS; i++) {
       const start = performance.now();
       createEngine(DATA);
       samples.push(performance.now() - start);
@@ -63,7 +72,7 @@ describe("AC-30: index construction over the real 29-doc corpus completes in <50
 
     const m = median(samples);
     // eslint-disable-next-line no-console
-    console.log(`[perf] AC-30 index construction median over ${ITERATIONS} runs: ${m.toFixed(3)}ms`, samples);
+    console.log(`[perf] AC-30 index construction median over ${AC30_ITERATIONS} runs: ${m.toFixed(3)}ms`, samples);
     expect(m).toBeLessThan(50);
   });
 });

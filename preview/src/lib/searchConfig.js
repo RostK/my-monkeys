@@ -78,12 +78,24 @@ export const STOP_WORDS = new Set([
 // budget (≤12,288 B gzipped). Covers exactly the suffix classes the golden
 // set and edge cases need: plural -s/-es, -ing, -ed, -ies -> -y. NOT a
 // general-purpose Porter stemmer — extend only when a golden case fails.
+//
+// -es plural-suffix ORDERING: in English, "-es" is only a genuine plural
+// suffix after s, x, z, ch, sh (buses, boxes, quizzes, matches, dishes) —
+// everywhere else the plural is a plain "-s" (table -> tables, file ->
+// files, type -> types). Checking "-es" unconditionally BEFORE "-s" (the
+// previous bug) strips two characters off every "-e"-ending noun's plural
+// instead of one, so "tables" -> "tabl" while "table" -> "table": two
+// different stems for the same word, which SPLITS the corpus into disjoint
+// singular/fuzzy-masked buckets instead of unifying them. The genuine -es
+// class MUST be checked first (it's a strict subset match), falling through
+// to the plain -s rule for everything else.
+const ES_PLURAL = /(?:[sxz]|ch|sh)es$/;
 function stem(word) {
   if (word.length <= 3) return word;
   if (word.endsWith("ies") && word.length > 4) return word.slice(0, -3) + "y";
   if (word.endsWith("ing") && word.length > 5) return word.slice(0, -3);
   if (word.endsWith("ed") && word.length > 4) return word.slice(0, -2);
-  if (word.endsWith("es") && word.length > 4) return word.slice(0, -2);
+  if (ES_PLURAL.test(word) && word.length > 4) return word.slice(0, -2);
   if (word.endsWith("s") && !word.endsWith("ss") && word.length > 3) return word.slice(0, -1);
   return word;
 }
@@ -99,9 +111,17 @@ const NON_ALPHANUMERIC = /[^\p{L}\p{N}]+/gu;
 // module-level Map turns every repeat token into an O(1) lookup instead of
 // re-running lowercase/strip/stop-word/stem for it. This is a PURE cache —
 // same input always yields the same output — so it changes NO ranking
-// behaviour whatsoever. Unbounded by design: the key space is bounded by the
-// distinct tokens across the (small, static) catalog + user queries, never
-// large enough in this app to be a memory concern.
+// behaviour whatsoever.
+//
+// UNBOUNDED, and honestly so: the catalog side of the key space IS bounded
+// (small, static), but the query side is NOT — this is an as-you-type search
+// box, so every prefix of every word ever typed in the tab's lifetime
+// becomes a permanent entry (never evicted). That's a slow, session-scoped
+// leak, not a correctness problem: a single tab session realistically types
+// at most a few hundred distinct prefixes, so it stays negligible in
+// practice. If this ever needs a hard ceiling (e.g. a long-lived embedded
+// widget), bound it with a simple LRU/size cap rather than assuming the key
+// space is naturally small.
 const normalizeCache = new Map();
 
 // Runs at BOTH index time and query time — MiniSearch's top-level

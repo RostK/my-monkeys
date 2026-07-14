@@ -42,6 +42,30 @@ describe("searchConfig — normalizeTerm (processTerm), symmetric at index and q
     expect(normalizeTerm("migrations")).toBe(normalizeTerm("migration"));
   });
 
+  // FINDING 1 regression pin: "-es" is only a genuine plural suffix after
+  // s/x/z/ch/sh (the true -es class below). Everything else — including
+  // every noun ending in a plain "e" — takes a plain "-s" and must NOT lose
+  // the trailing vowel too. Checking "-es" unconditionally before "-s" used
+  // to strip two characters off this whole class of plurals (tables -> tabl)
+  // while the singular (table -> table) stayed untouched, silently
+  // partitioning the corpus into two disjoint terms instead of unifying it.
+  it("stemming (-e class): singular/plural pairs ending in a plain 'e' normalize to the same term", () => {
+    expect(normalizeTerm("tables")).toBe(normalizeTerm("table"));
+    expect(normalizeTerm("files")).toBe(normalizeTerm("file"));
+    expect(normalizeTerm("types")).toBe(normalizeTerm("type"));
+    // Sanity: the shared stem is the singular's own stem, not a mangled one.
+    expect(normalizeTerm("table")).toBe("table");
+    expect(normalizeTerm("file")).toBe("file");
+    expect(normalizeTerm("type")).toBe("type");
+  });
+
+  it("stemming (genuine -es class): plurals of s/x/ch/sh-ending nouns normalize to the singular", () => {
+    expect(normalizeTerm("boxes")).toBe(normalizeTerm("box"));
+    expect(normalizeTerm("classes")).toBe(normalizeTerm("class"));
+    expect(normalizeTerm("box")).toBe("box");
+    expect(normalizeTerm("class")).toBe("class");
+  });
+
   it("AC-10: keywords boost sits strictly between tags and description", () => {
     expect(BOOSTS.keywords).toBeGreaterThan(BOOSTS.description);
     expect(BOOSTS.keywords).toBeLessThan(BOOSTS.tags);

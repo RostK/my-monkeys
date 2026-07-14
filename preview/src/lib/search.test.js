@@ -129,6 +129,25 @@ describe("computeResults — search modes (UI contract)", () => {
     expect(findByName(keywordOnly, "drizzle-orm-patterns")).toBeTruthy();
   });
 
+  // FINDING 1 regression pin (real corpus, Exact mode — prefix/fuzzy off, so
+  // nothing masks a stemmer bug): "table"/"tables" and "rule"/"rules" must
+  // return the exact same document set. Before the fix, the -es branch fired
+  // before the -s branch and stripped two characters off every plural whose
+  // singular ends in "e" ("tables" -> "tabl" vs "table" -> "table"),
+  // splitting the corpus into disjoint singular/plural buckets instead of
+  // unifying them.
+  it("stemming (real corpus, Exact mode): 'table'/'tables' and 'rule'/'rules' return the same document set", () => {
+    const table = computeResults(DATA, baseState({ q: "table", mode: "exact" })).map((a) => a.id);
+    const tables = computeResults(DATA, baseState({ q: "tables", mode: "exact" })).map((a) => a.id);
+    expect([...table].sort()).toEqual([...tables].sort());
+    expect(table.length).toBeGreaterThan(0);
+
+    const rule = computeResults(DATA, baseState({ q: "rule", mode: "exact" })).map((a) => a.id);
+    const rules = computeResults(DATA, baseState({ q: "rules", mode: "exact" })).map((a) => a.id);
+    expect([...rule].sort()).toEqual([...rules].sort());
+    expect(rule.length).toBeGreaterThan(0);
+  });
+
   it("AC-15: Exact mode is AND, no fuzzy, no prefix, no keywords field, still BM25-ranked", () => {
     const typo = computeResults(DATA, baseState({ q: "fastfy", mode: "exact" }));
     expect(typo).toHaveLength(0);
@@ -212,6 +231,29 @@ describe("computeResults — edge cases", () => {
       expect(Number.isFinite(r.score)).toBe(true);
       expect(r.score).toBeGreaterThanOrEqual(0);
     }
+  });
+
+  // FINDING 3 regression pin: the ranked-score cache must be keyed on the
+  // engine it was computed from, not just mode+query. Two DIFFERENT engines
+  // queried with the SAME mode+query text must each get THEIR OWN scores —
+  // querying engine B right after engine A must not short-circuit to A's
+  // (stale, wrong-corpus) result.
+  it("the ranked-score cache does not leak scores across different engine instances for the same mode+query", () => {
+    const fixtureA = [
+      makeFixtureDoc("only-in-a", { body: "zod" }),
+    ];
+    const fixtureB = [
+      makeFixtureDoc("only-in-b", { body: "zod" }),
+    ];
+    const engineA = createEngine(fixtureA);
+    const engineB = createEngine(fixtureB);
+
+    const resultsA = computeResults(fixtureA, baseState({ q: "zod" }), engineA);
+    expect(resultsA.map((a) => a.id)).toEqual(["only-in-a"]);
+
+    // Same mode + same query text, but a DIFFERENT engine/corpus right after.
+    const resultsB = computeResults(fixtureB, baseState({ q: "zod" }), engineB);
+    expect(resultsB.map((a) => a.id)).toEqual(["only-in-b"]);
   });
 
   it("E-6: facet filters apply, and ranking is stable when a facet is toggled", () => {
