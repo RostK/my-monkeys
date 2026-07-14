@@ -10,6 +10,14 @@ apps/web/dist/
 apps/web/public/index.json
 apps/web/public/embeddings.json
 
+# SDD telemetry — machine-local. The retro reports under retros/ are committed;
+# the raw ledger and its watermark are per-machine and are not.
+retros/ledger.jsonl
+retros/.ledger-state/
+
+# pr-self-review gate state (stamps the locally reviewed diff hash — per-machine)
+.claude/.pr-self-review-state.json
+
 # OS
 .DS_Store
 Thumbs.db
