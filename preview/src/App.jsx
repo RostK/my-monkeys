@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { DATA, MARKETPLACE } from "./data.js";
+import { DATA, INSTALL_MODES, installCommand } from "./data.js";
 import { computeResults } from "./lib/search.js";
 import { t } from "./strings.js";
 import Header from "./components/Header.jsx";
@@ -7,6 +7,7 @@ import SearchBar from "./components/SearchBar.jsx";
 import Filters from "./components/Filters.jsx";
 import Card from "./components/Card.jsx";
 import Toast from "./components/Toast.jsx";
+import InstallToggle from "./components/InstallToggle.jsx";
 
 // The detail modal pulls in react-markdown; load it only when a card is opened.
 const DetailModal = lazy(() => import("./components/DetailModal.jsx"));
@@ -60,6 +61,20 @@ export default function App() {
       return "dark";
     }
   });
+  const [installMode, setInstallMode] = useState(() => {
+    try {
+      return INSTALL_MODES.includes(localStorage.getItem("mm-install-mode")) ? localStorage.getItem("mm-install-mode") : "cli";
+    } catch {
+      return "cli";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("mm-install-mode", installMode);
+    } catch {
+      /* ignore */
+    }
+  }, [installMode]);
 
   // Apply + persist the theme (dark is the default).
   useEffect(() => {
@@ -122,19 +137,22 @@ export default function App() {
     setTags(new Set());
   }, []);
 
-  const copyInstall = useCallback((plugin) => {
-    const cmd = "claude plugin install " + plugin + "@" + MARKETPLACE;
-    const done = () => setToastMsg(t.toast.copiedPrefix + " " + cmd);
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(cmd).then(done, () => {
+  const copyInstall = useCallback(
+    (installName) => {
+      const cmd = installCommand(installName, installMode);
+      const done = () => setToastMsg(t.toast.copiedPrefix + " " + cmd);
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(cmd).then(done, () => {
+          legacyCopy(cmd);
+          done();
+        });
+      } else {
         legacyCopy(cmd);
         done();
-      });
-    } else {
-      legacyCopy(cmd);
-      done();
-    }
-  }, []);
+      }
+    },
+    [installMode]
+  );
 
   const copyLink = useCallback(() => {
     const url = location.href;
@@ -155,16 +173,19 @@ export default function App() {
           <Filters types={types} plugins={plugins} tags={tags} toggle={toggle} reset={reset} />
           <main>
             <div className="results-head">
-              <div className="results-count">
-                <b>{results.length}</b> {results.length === 1 ? t.results.one : t.results.many}
-              </div>
-              <div className="sort">
-                <label htmlFor="sort">{t.results.sort}</label>
-                <select id="sort" value={sort} onChange={(e) => setSort(e.target.value)}>
-                  <option value="relevance">{t.results.sortRelevance}</option>
-                  <option value="newest">{t.results.sortNewest}</option>
-                  <option value="az">{t.results.sortAz}</option>
-                </select>
+              <InstallToggle installMode={installMode} setInstallMode={setInstallMode} />
+              <div className="results-meta">
+                <div className="results-count">
+                  <b>{results.length}</b> {results.length === 1 ? t.results.one : t.results.many}
+                </div>
+                <div className="sort">
+                  <label htmlFor="sort">{t.results.sort}</label>
+                  <select id="sort" value={sort} onChange={(e) => setSort(e.target.value)}>
+                    <option value="relevance">{t.results.sortRelevance}</option>
+                    <option value="newest">{t.results.sortNewest}</option>
+                    <option value="az">{t.results.sortAz}</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -188,7 +209,14 @@ export default function App() {
 
       {openArtifact && (
         <Suspense fallback={null}>
-          <DetailModal artifact={openArtifact} onClose={() => setOpenId(null)} onInstall={copyInstall} onCopyLink={copyLink} />
+          <DetailModal
+            artifact={openArtifact}
+            onClose={() => setOpenId(null)}
+            onInstall={copyInstall}
+            onCopyLink={copyLink}
+            installMode={installMode}
+            setInstallMode={setInstallMode}
+          />
         </Suspense>
       )}
       <Toast message={toastMsg} />

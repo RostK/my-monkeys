@@ -4,6 +4,12 @@ All notable changes to **architecture-review** are documented here. The format f
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this plugin adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-14
+
+### Added
+- `/version-check` command: reports the installed version of each my-monkeys plugin, compares it with
+  the version pinned in the marketplace manifest, and flags anything stale. Read-only.
+
 ## [1.0.0] - 2026-07-13
 
 ### Added

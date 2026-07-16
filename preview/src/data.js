@@ -32,6 +32,15 @@ export const DATA = catalog.artifacts.map((a) => ({
 
 export const TYPES = ["skill", "command", "agent", "plugin"];
 
+// Install command, in either of two contexts. The `name@marketplace` argument is
+// identical; only the prefix differs — `claude plugin install` from a shell vs the
+// `/plugin install` slash command typed inside a Claude Code session.
+export const INSTALL_MODES = ["cli", "code"];
+export function installCommand(installName, mode) {
+  const ref = installName + "@" + MARKETPLACE;
+  return (mode === "code" ? "/plugin install " : "claude plugin install ") + ref;
+}
+
 function countBy(fn) {
   const m = {};
   DATA.forEach((a) => {

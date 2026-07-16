@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { MARKETPLACE } from "../data.js";
+import { installCommand } from "../data.js";
 import { TypeIcon, CopyIcon, CloseIcon, GithubIcon, LinkIcon } from "../icons.jsx";
 import { t } from "../strings.js";
+import InstallToggle from "./InstallToggle.jsx";
 
-export default function DetailModal({ artifact: a, onClose, onInstall, onCopyLink }) {
+export default function DetailModal({ artifact: a, onClose, onInstall, onCopyLink, installMode, setInstallMode }) {
   const closeRef = useRef(null);
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export default function DetailModal({ artifact: a, onClose, onInstall, onCopyLin
     };
   }, [onClose]);
 
-  const install = "claude plugin install " + a.installName + "@" + MARKETPLACE;
+  const install = installCommand(a.installName, installMode);
 
   return (
     <div className="modal-back" role="dialog" aria-modal="true" aria-labelledby="mTitle" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -58,17 +59,20 @@ export default function DetailModal({ artifact: a, onClose, onInstall, onCopyLin
         </div>
 
         <div className="modal-actions">
-          <div className="install-box">
-            <span style={{ color: "var(--text-mut)" }}>$</span> <code>{install}</code>
+          <InstallToggle installMode={installMode} setInstallMode={setInstallMode} />
+          <div className="install-row">
+            <div className="install-box">
+              {installMode === "cli" && <span style={{ color: "var(--text-mut)" }}>$</span>} <code>{install}</code>
+            </div>
+            <button className="btn btn-primary" style={{ flex: "none", padding: "9px 14px" }} onClick={() => onInstall(a.installName)}>
+              <CopyIcon />
+              {t.modal.copy}
+            </button>
+            <a className="btn btn-ghost" style={{ flex: "none", padding: "9px 14px" }} href={a.githubUrl} target="_blank" rel="noopener noreferrer">
+              <GithubIcon />
+              {t.modal.github}
+            </a>
           </div>
-          <button className="btn btn-primary" style={{ flex: "none", padding: "9px 14px" }} onClick={() => onInstall(a.installName)}>
-            <CopyIcon />
-            {t.modal.copy}
-          </button>
-          <a className="btn btn-ghost" style={{ flex: "none", padding: "9px 14px" }} href={a.githubUrl} target="_blank" rel="noopener noreferrer">
-            <GithubIcon />
-            {t.modal.github}
-          </a>
         </div>
 
         <div className="modal-body">
