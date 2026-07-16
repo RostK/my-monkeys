@@ -10,7 +10,9 @@ usage() {
   cat <<'EOF'
 Usage: scripts/rollback.sh <tag-or-ref> [options]
 
-  <tag-or-ref>         The known-good state to restore, e.g. v1.1.0 or a commit SHA
+  <tag-or-ref>         The known-good state to restore: a commit SHA, or a
+                       tag in either AC-17 family — Family-P <plugin>--v<X.Y.Z>
+                       (e.g. sdd-engineering--v1.0.0) or Family-M v<X.Y.Z>
 
 Options:
   --message <text>     Commit message (default: "Rollback to <ref> (<sha>)")
@@ -26,11 +28,11 @@ How it works:
 Environment:
   MAIN_BRANCH=main     Branch to roll back
   ALLOW_ANY_BRANCH=1   Permit rolling back a non-main branch
-  SKIP_VALIDATE=1      Skip `claude plugin validate .`
+  SKIP_VALIDATE=1      Skip marketplace validation (npm run validate:manifests)
 
 Examples:
-  scripts/rollback.sh v1.1.0
-  scripts/rollback.sh v1.1.0 --dry-run
+  scripts/rollback.sh sdd-engineering--v1.0.0
+  scripts/rollback.sh sdd-engineering--v1.0.0 --dry-run
 EOF
 }
 
@@ -59,7 +61,11 @@ MAIN_BRANCH="${MAIN_BRANCH:-main}"
 ensure_has_commit
 ensure_git_identity
 ensure_branch "$MAIN_BRANCH"
-git rev-parse -q --verify "$TARGET^{commit}" >/dev/null 2>&1 || die "Unknown tag/ref: $TARGET"
+# AC-28: accepts a ref in either AC-17 tag family — Family-P <plugin>--v<X.Y.Z>
+# or Family-M v<X.Y.Z> — or any other git-resolvable ref (git resolves tag
+# names generically; no family-specific parsing is needed to look one up).
+git rev-parse -q --verify "$TARGET^{commit}" >/dev/null 2>&1 \
+  || die "Unknown tag/ref: $TARGET. Expected a Family-P tag <plugin>--v<version> (e.g. sdd-engineering--v1.0.0), a Family-M tag v<version>, or a commit SHA. See \`git tag -l\`."
 require_clean_tree
 
 TARGET_SHA="$(git rev-parse --short "$TARGET")"
