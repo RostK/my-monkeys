@@ -1,7 +1,7 @@
 /**
  * gen-keywords.mjs — the HUMAN-INVOKED keyword generator. Calls the Anthropic
  * Messages API to (re)generate the `keywords` sidecar
- * (preview/data/keywords.json) that scripts/lib/keywords.mjs attaches to
+ * (site/data/keywords.json) that scripts/lib/keywords.mjs attaches to
  * every artifact for search, via `attachKeywords()` inside build-index.mjs.
  *
  * NEVER run by `npm run index` / `npm run build` / `npm run predev` /
@@ -19,7 +19,7 @@
  *   --stale     Only regenerate artifacts whose stored contentHash has
  *               drifted from the current catalog (or that have no entry).
  *
- * Requires `npm run index` to have already produced preview/src/catalog.json.
+ * Requires `npm run index` to have already produced site/src/catalog.json.
  */
 import { readFileSync, existsSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -27,7 +27,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { SCHEMA_VERSION, KEYWORDS_PATH, readSidecar, contentHashOf } from "./lib/keywords.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-// preview/scripts/gen-keywords.mjs -> preview/src/catalog.json
+// site/scripts/gen-keywords.mjs -> site/src/catalog.json
 const CATALOG_PATH = resolve(HERE, "../src/catalog.json");
 
 // Model id, endpoint, and request/response shape taken from the claude-api
@@ -181,7 +181,7 @@ function loadCatalog() {
   if (!existsSync(CATALOG_PATH)) {
     console.error(
       `[gen-keywords] catalog not found at ${CATALOG_PATH}.\n` +
-        `Run "npm run index" first (it generates preview/src/catalog.json), then re-run this script.`
+        `Run "npm run index" first (it generates site/src/catalog.json), then re-run this script.`
     );
     process.exit(1);
   }

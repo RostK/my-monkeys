@@ -1,7 +1,7 @@
 // Unit tests for the gzip summation, the AC-21 pass/fail boundary, and the
 // AC-29 forbidden-asset guard — all against small FIXTURE directories built
 // with mkdtempSync. Deliberately does NOT require a real `npm run build`;
-// scripts/check-dist.mjs computing real numbers off `preview/dist` is proven
+// scripts/check-dist.mjs computing real numbers off `site/dist` is proven
 // manually per the task's Definition of Done, not by this suite.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { gzipSync } from "node:zlib";

@@ -1,6 +1,6 @@
-# Marketplace UI — design preview
+# Marketplace UI — the site
 
-A **React + Vite** preview of the **my-monkeys** marketplace UI (dark, Nocturne-style).
+The **React + Vite** site for the **my-monkeys** marketplace UI (dark, Nocturne-style).
 It is intentionally kept **separate from the marketplace itself** — the catalog
 (`.claude-plugin/marketplace.json`, `plugins/`) is never mixed into this folder.
 
@@ -17,19 +17,19 @@ Live site: **https://rostk.github.io/my-monkeys/**
 ## Develop
 
 ```bash
-cd preview
+cd site
 npm install
 npm run dev      # Vite dev server + HMR → http://localhost:5173
 ```
 
-In this repo's tooling you can also start the **`preview`** launch config, which runs
+In this repo's tooling you can also start the **`site`** launch config, which runs
 the same Vite dev server.
 
 ## Build
 
 ```bash
-npm run build    # → preview/dist  (base path "/my-monkeys/")
-npm run preview  # serve the production build locally
+npm run build    # → site/dist  (base path "/my-monkeys/")
+npm run preview  # serve the production build locally (Vite's own preview server)
 ```
 
 ## Test
@@ -43,7 +43,7 @@ npm run test:watch
 ## Structure
 
 ```
-preview/
+site/
 ├── index.html            # Vite entry
 ├── vite.config.js        # base "/my-monkeys/" in production, "/" in dev
 ├── vitest.config.js      # standalone Vitest config (unit + integration tests)
@@ -110,6 +110,6 @@ drifted entries.
 ## Hosting
 
 Published to GitHub Pages by [`.github/workflows/pages.yml`](../.github/workflows/pages.yml),
-which runs `npm ci && npm run build` and uploads **only** `preview/dist` as the Pages
+which runs `npm ci && npm run build` and uploads **only** `site/dist` as the Pages
 artifact (auto-enabling Pages on first run). Requires the repo to be public or on a
 Pages-eligible plan.

@@ -38,7 +38,7 @@ export const BOOSTS = {
 // BM25+ params. Started from MiniSearch's own default (`k:1.2, b:0.7, d:0.5`)
 // and LOWERED `b` — `b` is the field-length-normalization strength and the
 // direct lever on the known MiniSearch pathology (lucaong/minisearch#129,
-// documented in preview/LEARNINGS.md:29): a short displayName/description can
+// documented in site/LEARNINGS.md:29): a short displayName/description can
 // otherwise dominate IDF and outrank a longer, more relevant `body`. Tuned
 // against the golden-query regression suite (golden.test.js) — see that
 // file's header for the tuning trail.

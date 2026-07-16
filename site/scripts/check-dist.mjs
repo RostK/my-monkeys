@@ -1,5 +1,5 @@
 /**
- * check-dist.mjs — the post-build CI gate for the shipped `preview/dist`
+ * check-dist.mjs — the post-build CI gate for the shipped `site/dist`
  * output. One script, one concern: "is the shipped dist within contract".
  *
  * Two independent checks, both driven by `runCheck()`:
@@ -30,10 +30,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { gzipSync } from "node:zlib";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-// preview/scripts/check-dist.mjs -> preview/
-const PREVIEW_ROOT = resolve(HERE, "..");
-const DEFAULT_DIST_DIR = resolve(PREVIEW_ROOT, "dist");
-const DEFAULT_BUDGET_PATH = resolve(PREVIEW_ROOT, "dist-budget.json");
+// site/scripts/check-dist.mjs -> site/
+const SITE_ROOT = resolve(HERE, "..");
+const DEFAULT_DIST_DIR = resolve(SITE_ROOT, "dist");
+const DEFAULT_BUDGET_PATH = resolve(SITE_ROOT, "dist-budget.json");
 
 /**
  * The exact set of dist assets counted toward the bundle budget (AC-21):
@@ -202,7 +202,7 @@ export function runCheck({ distDir = DEFAULT_DIST_DIR, budgetPath = DEFAULT_BUDG
     ok = false;
     messages.push(
       `[check-dist] FAIL — forbidden pre-serialized asset(s) found in dist (AC-29): ` +
-        offenders.map((f) => relative(PREVIEW_ROOT, f)).join(", ")
+        offenders.map((f) => relative(SITE_ROOT, f)).join(", ")
     );
   }
 

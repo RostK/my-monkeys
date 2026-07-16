@@ -1,7 +1,7 @@
 # SPEC-01 — Lexical search engine + build-time keyword enrichment
 
 - **Spec ID:** SPEC-01
-- **Module:** `preview` (marketplace preview site)
+- **Module:** `site` (the marketplace site)
 - **Date:** 2026-07-14
 - **Status:** approved
 - **Owner:** RostK
@@ -17,12 +17,12 @@
 
 ## 1. Problem
 
-The marketplace preview site (https://rostk.github.io/my-monkeys/) ships 29 artifacts
+The marketplace site (https://rostk.github.io/my-monkeys/) ships 29 artifacts
 (4 plugins, 18 skills, 6 agents, 1 command). Its search is a hand-rolled substring matcher in
-`preview/src/lib/search.js`, and it fails the primary use case the site exists for — a user
+`site/src/lib/search.js`, and it fails the primary use case the site exists for — a user
 describing a *problem* in their own words and finding the artifact that solves it.
 
-Grounded behaviour of the current matcher (`preview/src/lib/search.js`):
+Grounded behaviour of the current matcher (`site/src/lib/search.js`):
 
 - **Tokenization:** `state.q.toLowerCase().split(/\s+/)` — whitespace only. No stemming, no
   stop-word removal, no punctuation handling.
@@ -30,7 +30,7 @@ Grounded behaviour of the current matcher (`preview/src/lib/search.js`):
   tokens must match (AND)`). Matching is raw `String.indexOf` substring containment — no prefix
   semantics, no typo tolerance.
   - `mode === "smart"` → token must appear in `a.haystack` (`displayName + name + description +
-    tags + plugin`, lowercased in `preview/src/data.js`) **or** in `a.body` (full markdown).
+    tags + plugin`, lowercased in `site/src/data.js`) **or** in `a.body` (full markdown).
   - `mode === "exact"` → token must appear in `displayName`, `name`, or `tags` only.
 - **Scoring** (`score()`): fixed additive per-token weights — displayName +6, tags +4, description
   +3, plugin +2, body +1 (smart only). There is **no term frequency, no document frequency/IDF, and
@@ -49,7 +49,7 @@ Consequences:
 3. **No typo tolerance.** "fastfy" → zero results.
 4. **"Relevance" is not relevance.** Without IDF, a common word ("code", "use") contributes the
    same weight as a discriminating one.
-5. **The UI over-promises.** `preview/src/strings.js` labels the toggle
+5. **The UI over-promises.** `site/src/strings.js` labels the toggle
    `"Smart = semantic ranking · Exact = keyword only"`. No semantic ranking exists; the shipped
    difference is only *which fields are scanned*. The copy is misleading today.
 
@@ -107,7 +107,7 @@ Explicitly **not** in this spec (state them so they are not re-litigated during 
 | Types | native TypeScript | — |
 
 MiniSearch is smaller **and** is the only one of the two that actually does IR term ranking, which
-is precisely what G2 requires. No repo constraint contradicts it: `preview/package.json` depends
+is precisely what G2 requires. No repo constraint contradicts it: `site/package.json` depends
 only on `react`, `react-dom`, `react-markdown`, `remark-gfm` — **Fuse.js is not already a
 dependency**, and `docs/SPEC-marketplace-ui.md` §5.1/§6 already nominated MiniSearch.
 
@@ -132,7 +132,7 @@ against the committed golden-query set (§4.4) — not left to "tune it later".
 - **Regeneration is a deliberate manual re-run**, not an automatic consequence of anything. The
   drift this permits is exactly what the staleness warning (§4.3, AC-20) exists to surface.
 
-**Home: a sidecar file under `preview/`** — e.g. `preview/data/keywords.json`, a map keyed by
+**Home: a sidecar file under `site/`** — e.g. `site/data/keywords.json`, a map keyed by
 artifact `id`. **Not frontmatter.** This sidesteps the `fm.keywords` → `tagsFor()` collision
 entirely (`build-index.mjs:80-91` reads `fm.tags || fm.keywords`, so a frontmatter key named
 `keywords` would silently become an artifact's *tags*), and it keeps `plugins/**` — the shipped
@@ -178,8 +178,8 @@ passes only via a baked keyword**. Cases 1 and 2 satisfy that today.
 
 The MiniSearch index is **built in the browser at startup from the already-bundled catalog**.
 `MiniSearch.toJSON()` / `loadJSON()` pre-serialization is **rejected**. Rationale: 29 documents index
-effectively instantaneously; `preview/src/catalog.json` is already `import`ed and bundled by
-`preview/src/data.js`, so the source data is present at zero extra cost; and pre-serialization would
+effectively instantaneously; `site/src/catalog.json` is already `import`ed and bundled by
+`site/src/data.js`, so the source data is present at zero extra cost; and pre-serialization would
 add a second payload *plus* a library-version lockstep burden (a serialized index must be rebuilt in
 step with the MiniSearch version) for no measurable win at this scale.
 
@@ -210,7 +210,7 @@ step with the MiniSearch version) for no measurable win at this scale.
 ## 6. Acceptance criteria
 
 Each is one testable statement. `Verify:` gives the proof method. *(There is no test runner in
-`preview/package.json` today — see Assumption A-5.)*
+`site/package.json` today — see Assumption A-5.)*
 
 ### Ranking engine (Smart mode)
 
@@ -247,8 +247,8 @@ Each is one testable statement. `Verify:` gives the proof method. *(There is no 
 
 ### Keyword enrichment (build time)
 
-- **AC-9.** `preview/scripts/build-index.mjs` SHALL read the committed keyword sidecar (§4.2) and
-  emit a `keywords: string[]` field on every artifact in `preview/src/catalog.json`, for all 29
+- **AC-9.** `site/scripts/build-index.mjs` SHALL read the committed keyword sidecar (§4.2) and
+  emit a `keywords: string[]` field on every artifact in `site/src/catalog.json`, for all 29
   artifacts (no artifact left with an empty array).
   *Verify: unit — assert `catalog.artifacts.every(a => a.keywords.length > 0)`.*
 - **AC-10.** The system SHALL index the `keywords` field in `Smart` mode with a boost between that
@@ -272,7 +272,7 @@ Each is one testable statement. `Verify:` gives the proof method. *(There is no 
 ### Search modes and sort (UI contract)
 
 **One engine, one code path.** Both modes are MiniSearch queries differing only in options; the old
-`indexOf` substring matcher in `preview/src/lib/search.js` is **deleted**.
+`indexOf` substring matcher in `site/src/lib/search.js` is **deleted**.
 
 - **AC-14.** WHERE the mode is the default, typo-tolerant one (labelled `Fuzzy` — AC-17; `mode`
   value unchanged internally), the system SHALL query MiniSearch with `combineWith: 'OR'`, prefix
@@ -288,11 +288,11 @@ Each is one testable statement. `Verify:` gives the proof method. *(There is no 
   results by the engine's BM25 score descending — **in both modes** — tie-breaking on recency
   (`days` ascending) as today.
   *Verify: unit.*
-- **AC-17.** The search-mode labels and copy in `preview/src/strings.js` SHALL describe what actually
+- **AC-17.** The search-mode labels and copy in `site/src/strings.js` SHALL describe what actually
   happens — typo-tolerant + ranked versus literal + ranked (e.g. `Fuzzy` / `Exact`) — and the word
   **"semantic" SHALL NOT appear anywhere in the search UI copy** (nothing semantic exists or ever
   shipped; NG-1 rejects it outright). All such copy SHALL be English and SHALL live in
-  `preview/src/strings.js`, not hardcoded in a component.
+  `site/src/strings.js`, not hardcoded in a component.
   *Verify: unit — assert `/semantic/i` does not match any string under `t.search`; plus manual copy
   review. Today's offending string: `"Smart = semantic ranking · Exact = keyword only"`.*
 - **AC-18.** The system SHALL preserve the existing URL-hash contract (`#q=…&mode=…&sort=…`),
@@ -304,7 +304,7 @@ Each is one testable statement. `Verify:` gives the proof method. *(There is no 
 ### Keyword governance
 
 - **AC-19.** The `keywords` vocabulary SHALL live in a **single committed sidecar file under
-  `preview/`**, keyed by artifact `id`, reviewable as a normal diff in a pull request and editable by
+  `site/`**, keyed by artifact `id`, reviewable as a normal diff in a pull request and editable by
   hand without re-running any generator.
   *Verify: manual — `git ls-files` shows the sidecar; a PR diff shows keyword changes; a hand-edited
   keyword survives `npm run index`.*
@@ -338,7 +338,7 @@ Each is one testable statement. `Verify:` gives the proof method. *(There is no 
   empty page or a crash.
   *Verify: unit — force an engine-construction throw; assert results.length === 29 and no unhandled
   error.*
-  *(The catalog is `import`ed at build time in `preview/src/data.js`, so it is **bundled**, not
+  *(The catalog is `import`ed at build time in `site/src/data.js`, so it is **bundled**, not
   fetched, and per §4.5 the index is built in the browser from it — there is no runtime
   "index failed to load" path at all. This AC therefore covers **engine initialization**, which is the
   only remaining failure mode.)*
@@ -348,7 +348,7 @@ Each is one testable statement. `Verify:` gives the proof method. *(There is no 
 
 ### Provenance, regression suite, index construction
 
-- **AC-27.** `preview/scripts/build-index.mjs` SHALL NOT generate keywords, SHALL NOT call any LLM,
+- **AC-27.** `site/scripts/build-index.mjs` SHALL NOT generate keywords, SHALL NOT call any LLM,
   and SHALL NOT make any network request. Keyword generation SHALL be a separate, human-invoked local
   script that is not run by `npm run index`, `npm run build`, `predev`, `prebuild`, or any CI
   workflow.
@@ -361,7 +361,7 @@ Each is one testable statement. `Verify:` gives the proof method. *(There is no 
   *Verify: unit — the suite runs and passes in CI; assert its cases include both required kinds.*
 - **AC-29.** The system SHALL build the MiniSearch index in the browser from the bundled catalog.
   It SHALL NOT ship a pre-serialized index (`MiniSearch.toJSON()`), and the build SHALL NOT emit one.
-  *Verify: integration — no serialized-index asset exists in `preview/dist`; unit — the engine is
+  *Verify: integration — no serialized-index asset exists in `site/dist`; unit — the engine is
   constructed from the catalog at runtime.*
 - **AC-30.** WHEN the app starts, index construction for the 29-document corpus SHALL complete within
   **50 ms** on a mid-range laptop and SHALL NOT block first paint.
@@ -402,18 +402,18 @@ Each is one testable statement. `Verify:` gives the proof method. *(There is no 
   no pagination of the index, no pre-serialization — is scoped to that. (Not verifiable: no
   published benchmark at exactly ~29 docs; at this scale in-browser indexing is expected to be
   effectively instant.)
-- **A-2.** `preview/src/catalog.json` is **gitignored** (`preview/.gitignore:7 → src/catalog.json`)
+- **A-2.** `site/src/catalog.json` is **gitignored** (`site/.gitignore:7 → src/catalog.json`)
   and regenerated on every build by the `predev` / `prebuild` npm scripts. It is therefore **not** a
   place keywords can be authored — they must come from a committed source that `build-index.mjs`
   reads (AC-19).
-- **A-3.** `preview/src/data.js` does `import catalog from "./catalog.json"` — the catalog is bundled
+- **A-3.** `site/src/data.js` does `import catalog from "./catalog.json"` — the catalog is bundled
   into the JS bundle at build time. There is **no runtime fetch** of the index (contrast with
   `docs/SPEC-marketplace-ui.md` §3, which assumed a fetched `index.json`).
-- **A-4.** CI (`.github/workflows/pages.yml`, `preview-build.yml`) runs `npm ci && npm run build`
+- **A-4.** CI (`.github/workflows/pages.yml`, `site-build.yml`) runs `npm ci && npm run build`
   with `permissions: contents: read` and **no repository secrets configured**. The build is
   deterministic and offline, and §4.2 keeps it that way: no secret is added, no network step is
   introduced, and no LLM is invoked by any build or CI path (AC-27).
-- **A-5.** `preview/package.json` has **no `test` script and no test runner**. Every `Verify: unit`
+- **A-5.** `site/package.json` has **no `test` script and no test runner**. Every `Verify: unit`
   hint above presumes one is introduced by the implementation plan; choosing it is a HOW decision.
 - **A-6.** MiniSearch ships no stemmer and no stop-word list; word-form variation (G3) requires a
   `processTerm` / `tokenize` hook. This is a stated dependency, not an optional extra.
@@ -426,12 +426,12 @@ Each is one testable statement. `Verify:` gives the proof method. *(There is no 
 
 | Input | Provenance |
 | --- | --- |
-| Current matcher behaviour | `preview/src/lib/search.js`, `preview/src/data.js` (read) |
-| Index generation | `preview/scripts/build-index.mjs` (read) |
+| Current matcher behaviour | `site/src/lib/search.js`, `site/src/data.js` (read) |
+| Index generation | `site/scripts/build-index.mjs` (read) |
 | Corpus size (29 = 4 plugins + 18 skills + 6 agents + 1 command) | counted from `plugins/**` |
-| Catalog is gitignored / bundled | `preview/.gitignore`, `preview/src/data.js` |
-| CI has no secrets | `.github/workflows/pages.yml`, `.github/workflows/preview-build.yml` |
-| `Smart`/`Exact` + `Sort: Relevance` wiring | `preview/src/components/SearchBar.jsx`, `preview/src/App.jsx`, `preview/src/strings.js` |
+| Catalog is gitignored / bundled | `site/.gitignore`, `site/src/data.js` |
+| CI has no secrets | `.github/workflows/pages.yml`, `.github/workflows/site-build.yml` |
+| `Smart`/`Exact` + `Sort: Relevance` wiring | `site/src/components/SearchBar.jsx`, `site/src/App.jsx`, `site/src/strings.js` |
 | MiniSearch 7.2.0 / Fuse.js 7.5.0 comparison, sizes, BM25+ params, issue #129 | pre-verified research supplied with the brief (primary sources) |
 | Prior intent for search | `docs/SPEC-marketplace-ui.md` §5, §6 |
 
@@ -448,26 +448,26 @@ Each is one testable statement. `Verify:` gives the proof method. *(There is no 
 
 ## 11. Cross-module impact
 
-- **`preview/src/lib/search.js`** — rewritten as the engine adapter. The `score()` and
+- **`site/src/lib/search.js`** — rewritten as the engine adapter. The `score()` and
   `matchesQuery()` `indexOf` matcher is **deleted**; both modes become MiniSearch queries (AC-14,
   AC-15).
-- **`preview/src/data.js`** — the `haystack` field exists solely for the old substring matcher; it
+- **`site/src/data.js`** — the `haystack` field exists solely for the old substring matcher; it
   becomes dead weight once MiniSearch indexes fields directly (PI-2).
-- **`preview/scripts/build-index.mjs`** — reads the keyword sidecar, emits the `keywords` field, and
+- **`site/scripts/build-index.mjs`** — reads the keyword sidecar, emits the `keywords` field, and
   emits the staleness warning (AC-9, AC-20, AC-27). **Collision avoided by design:** `tagsFor()`
   reads `fm.tags || fm.keywords`, so a frontmatter key named `keywords` would silently become an
   artifact's *tags*. The sidecar decision (§4.2) means keywords never touch frontmatter, so this path
   can never fire.
-- **New: `preview/data/keywords.json`** (or equivalent sidecar) — committed, hand-editable.
+- **New: `site/data/keywords.json`** (or equivalent sidecar) — committed, hand-editable.
 - **New: a local, human-invoked keyword generation script** — not wired into any npm lifecycle hook
   or CI workflow (AC-27).
 - **New: the committed golden-query regression suite** (§4.4, AC-28).
-- **`preview/src/strings.js`** — mode labels and copy renamed; "semantic" removed (AC-17).
+- **`site/src/strings.js`** — mode labels and copy renamed; "semantic" removed (AC-17).
 - **`plugins/**`** — **untouched.** The sidecar decision keeps the shipped plugins out of the blast
   radius entirely.
 - **`docs/SPEC-marketplace-ui.md`** — §5.2/§5.3 and the embeddings row of §6 are **superseded by this
   spec** (see the Supersedes field). The document stays as history; a pointer to SPEC-01 is added.
-- **CI** — `preview-build.yml` / `pages.yml` gain the golden-query suite (AC-28) and the bundle-size
+- **CI** — `site-build.yml` / `pages.yml` gain the golden-query suite (AC-28) and the bundle-size
   check (AC-21). They gain **no secret and no network step** (AC-27).
 
 ---
@@ -478,7 +478,7 @@ Surfaced by the completeness pass; still optional, offered for the owner to acce
 
 - **PI-1.** Use MiniSearch's `autoSuggest()` for a query-completion dropdown. It comes free with the
   engine and is the single biggest perceived-smartness win after ranking. (Currently NG-5.)
-- **PI-2.** Delete the now-dead `haystack` field from `preview/src/data.js` once the engine indexes
+- **PI-2.** Delete the now-dead `haystack` field from `site/src/data.js` once the engine indexes
   fields directly — otherwise the whole lowercased blob ships in the bundle for nothing. (Also helps
   AC-21.)
 - **PI-3.** Show *why* an artifact matched (e.g. "matched: orm, migrations") when the hit came from
@@ -500,7 +500,7 @@ All eight `[NEEDS CLARIFICATION]` markers raised in the draft were answered by t
 | Was | Answer | Landed in |
 | --- | --- | --- |
 | NC-1 Keyword provenance | Offline, once, by a human-invoked **local** script; committed; never in the build or CI | §4.2, NG-8, AC-9, AC-19, AC-27, A-4 |
-| NC-2 Keyword home & visibility | **Sidecar** under `preview/`, keyed by artifact `id`; **invisible**, ranking-only; separate from `tags` | §4.2, NG-7, AC-13, AC-19 |
+| NC-2 Keyword home & visibility | **Sidecar** under `site/`, keyed by artifact `id`; **invisible**, ranking-only; separate from `tags` | §4.2, NG-7, AC-13, AC-19 |
 | NC-3 Stale-keyword policy | **Warn, never fail** (content-hash drift) | §4.3, AC-20 |
 | NC-4 `Exact` contract | Stricter MiniSearch mode: `combineWith: 'AND'`, no fuzzy, no prefix, no `keywords`; still BM25-ranked. Old `indexOf` matcher **deleted** | AC-14, AC-15, AC-16 |
 | NC-5 Golden-query set | The 5-case seed, committed as a regression suite; extensible; must keep ≥1 sentence query and ≥1 keyword-only query | §4.4, AC-7, AC-28 |

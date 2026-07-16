@@ -4,7 +4,7 @@
  *
  * Walks .claude-plugin/marketplace.json + plugins/** , parses plugin.json and
  * the YAML frontmatter of SKILL.md / commands/*.md / agents/*.md, reads each
- * file's last git-commit date, and writes preview/src/catalog.json — which the
+ * file's last git-commit date, and writes site/src/catalog.json — which the
  * UI imports at build time. Re-run it whenever plugins change (it runs
  * automatically via the predev/prebuild npm scripts and in CI).
  *
@@ -18,7 +18,7 @@ import matter from "gray-matter";
 import { attachKeywords, readSidecar } from "./lib/keywords.mjs";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const OUT = join(REPO_ROOT, "preview", "src", "catalog.json");
+const OUT = join(REPO_ROOT, "site", "src", "catalog.json");
 const OWNER = "RostK";
 const REPO = "my-monkeys";
 const BRANCH = "main";
@@ -195,7 +195,7 @@ for (const entry of marketplace.plugins || []) {
   }
 }
 
-// Keyword sidecar (preview/data/keywords.json) attaches `keywords: string[]`
+// Keyword sidecar (site/data/keywords.json) attaches `keywords: string[]`
 // to every artifact for the search engine. A missing/malformed sidecar or a
 // per-artifact content-hash drift only WARNS — it must never fail the build
 // (AC-20).

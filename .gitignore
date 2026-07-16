@@ -4,11 +4,9 @@
 # Dependencies
 node_modules/
 
-# Build output & CI-generated artifacts (see docs/SPEC-marketplace-ui.md §11)
+# Build output & CI-generated artifacts (see docs/SPEC-marketplace-ui.md §11).
+# The site's own build output and generated catalog are ignored by site/.gitignore.
 dist/
-apps/web/dist/
-apps/web/public/index.json
-apps/web/public/embeddings.json
 
 # SDD telemetry — machine-local. The retro reports under retros/ are committed;
 # the raw ledger and its watermark are per-machine and are not.

@@ -9,7 +9,7 @@ A web app for searching and browsing the `my-monkeys` plugin marketplace artifac
 
 > [!IMPORTANT]
 > **The search design in this document is superseded by
-> [SPEC-01 — Lexical search engine + build-time keyword enrichment](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
+> [SPEC-01 — Lexical search engine + build-time keyword enrichment](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
 > (2026-07-14).** Where the two conflict, **SPEC-01 wins.**
 >
 > **Everything describing embeddings / vector search / semantic ranking is no longer the plan.**
@@ -47,7 +47,7 @@ A web app for searching and browsing the `my-monkeys` plugin marketplace artifac
    natural-language query ("I need a skill for refactoring") and gets relevant artifacts.
    > **The *goal* stands; the mechanism changed.** Natural-language queries are served by
    > **BM25 lexical ranking + baked keywords**, not semantics
-   > ([SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md) §4, NG-1).
+   > ([SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md) §4, NG-1).
 2. **Result cards** — type, name, plugin, description, tags, updated date.
 3. **Install button** on the card — copies `claude plugin install <name>@my-monkeys`.
 4. **Artifact detail view** — full render of `SKILL.md` / README with code highlighting.
@@ -61,13 +61,13 @@ Issues, Cmd-K palette, dark-mode toggle (dark theme is the default).
 ### Constraints
 - GitHub Pages = **static hosting**, no server-side code at runtime.
 - All logic (indexing, ~~embeddings~~) runs **at build time** in GitHub Actions.
-  > **⛔ Amended by [SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
+  > **⛔ Amended by [SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
   > (NG-8, AC-27):** no embedding step exists, and the build performs **no network call and uses no
   > API key** — CI runs `permissions: contents: read` with no secrets. Keyword generation happens
   > *offline*, by hand, outside the build entirely.
 - ~~The client only loads static assets (`index.json`, `embeddings.json`, the SPA bundle).~~
   > **⛔ Reality diverged:** there is no `embeddings.json`, and the catalog is **not fetched** — it is
-  > `import`ed and **bundled into the SPA** (`preview/src/data.js`). The client loads the bundle and
+  > `import`ed and **bundled into the SPA** (`site/src/data.js`). The client loads the bundle and
   > nothing else.
 - **English-only content.** All marketplace-facing text — UI labels, buttons, toasts,
   empty/error states, plus every artifact `name`, `displayName`, `description`, and
@@ -79,7 +79,7 @@ Issues, Cmd-K palette, dark-mode toggle (dark theme is the default).
 ## 2. Architecture
 
 > **⛔ The diagram's embedding step (CI step 5) and the client's `embeddings.json` fetch are
-> SUPERSEDED** by [SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
+> SUPERSEDED** by [SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
 > (NG-1). What actually ships: CI emits **one** artifact (`src/catalog.json`, gitignored), which is
 > **bundled into the SPA** rather than fetched, and the browser builds a MiniSearch BM25 index from
 > it at startup (§4.5). The **"Key idea" below survives** — the smart work still happens once, at
@@ -147,7 +147,7 @@ A flat array of all artifacts. Generated on CI.
 
 ### 3.2 `embeddings.json`
 
-> **⛔ SUPERSEDED by [SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md) (NG-1).**
+> **⛔ SUPERSEDED by [SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md) (NG-1).**
 > No embeddings file is produced or shipped. The ranking signal that replaces it is a committed
 > `keywords` sidecar (SPEC-01 §4.2) — plain-English synonyms, a couple of KB, no vectors.
 > Retained below as history only.
@@ -177,7 +177,7 @@ Steps:
 1. `checkout` with `fetch-depth: 0` (git history needed for dates).
 2. `node scripts/build-index.mjs` → `apps/web/public/index.json`.
 3. ~~`node scripts/embed.mjs` → `apps/web/public/embeddings.json`~~
-   **⛔ SUPERSEDED by [SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
+   **⛔ SUPERSEDED by [SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
    (NG-8, AC-27).** There is **no embedding step**, and the build makes **no network call and uses no
    API key** — CI runs with `permissions: contents: read` and no secrets. Keywords are generated
    *offline* by a human-invoked local script and committed; the build only ever *reads* them.
@@ -194,7 +194,7 @@ artifact's text has drifted from the keywords generated against it. It never fai
 
 > [!WARNING]
 > **This section is the one most affected by
-> [SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md).**
+> [SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md).**
 > §5.1 survives (MiniSearch was the right call). **§5.2 and §5.3 do not.** Search is **purely
 > lexical** — there is no second (semantic) list, so there is nothing to fuse. Read SPEC-01 §4
 > for the design that actually ships.
@@ -216,7 +216,7 @@ Hybrid, fully client-side. *(No longer hybrid — see the warning above.)*
 
 ### 5.2 Semantic
 
-> **⛔ SUPERSEDED by [SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
+> **⛔ SUPERSEDED by [SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
 > (NG-1).** No on-device transformer, no `@xenova/transformers`, no query embedding, no model
 > download. At 29 artifacts the *only* thing embeddings would really buy is closing the vocabulary
 > gap — and SPEC-01 closes that far more cheaply by baking LLM-generated synonyms into the index at
@@ -232,7 +232,7 @@ Hybrid, fully client-side. *(No longer hybrid — see the warning above.)*
 
 ### 5.3 Fusion
 
-> **⛔ SUPERSEDED by [SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
+> **⛔ SUPERSEDED by [SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md)
 > (NG-1, AC-14–AC-17).** With no semantic list there is no second ranking to fuse, so **Reciprocal
 > Rank Fusion does not apply.** Both modes are MiniSearch queries over one BM25 ranking, differing
 > only in options:
@@ -240,7 +240,7 @@ Hybrid, fully client-side. *(No longer hybrid — see the warning above.)*
 > - **Exact** — `combineWith: 'AND'`, no fuzzy, no prefix, does **not** search `keywords`.
 >
 > ⚠️ **The "Smart / Exact" toggle named below was never semantic.** The shipped code only ever varied
-> *which fields were scanned*, while `preview/src/strings.js` advertised
+> *which fields were scanned*, while `site/src/strings.js` advertised
 > `"Smart = semantic ranking · Exact = keyword only"`. SPEC-01 AC-17 requires that copy be renamed
 > honestly and forbids the word "semantic" anywhere in the search UI. The empty-query →
 > sort-by-recency behaviour below **does** survive (SPEC-01 AC-8).
@@ -319,7 +319,7 @@ my-monkeys/
 ## 8. Performance
 
 > **⛔ The first two bullets are SUPERSEDED by
-> [SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md).** There is **no
+> [SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md).** There is **no
 > 25–90 MB model download**, no Web Worker for it, and no "progressive upgrade to semantic" — that
 > was the single largest cost of the embeddings design and it is gone. Nor is anything *fetched*:
 > the catalog is `import`ed and **bundled** into the JS. SPEC-01's budgets instead: **≤ 12 KB gzipped**
@@ -349,7 +349,7 @@ my-monkeys/
 | M0| `build-index.mjs` + `index.json` schema + CI generation     | index builds on push |
 | M1| SPA scaffold, fetch index, card grid, keyword search        | keyword search + cards work |
 | M2| Install button, markdown detail, faceted filters, URL state | full browse/filter |
-| ~~M3~~| ~~`embed.mjs` + on-device MiniLM + RRF fusion + toggle~~ — **⛔ SUPERSEDED.** Replaced by [SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md): MiniSearch BM25 + a committed `keywords` sidecar | ~~semantic search~~ → ranked lexical search |
+| ~~M3~~| ~~`embed.mjs` + on-device MiniLM + RRF fusion + toggle~~ — **⛔ SUPERSEDED.** Replaced by [SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md): MiniSearch BM25 + a committed `keywords` sidecar | ~~semantic search~~ → ranked lexical search |
 | M4| Performance, a11y, E2E, deploy to Pages                     | public MVP |
 
 ---
@@ -357,7 +357,7 @@ my-monkeys/
 ## 11. Open questions
 
 > **Q1 and Q2 are CLOSED by
-> [SPEC-01](../specs/preview/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md).**
+> [SPEC-01](../specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md).**
 
 1. ~~Embedding model: MiniLM on-device vs OpenAI. **MVP decision: MiniLM.**~~
    **⛔ Moot — there is no embedding model** (SPEC-01 NG-1). The question that replaced it —
@@ -365,7 +365,7 @@ my-monkeys/
    local script; committed to the repo; never run in the build or CI** (CI has no secrets).
 2. ~~`index.json`/`embeddings.json` — commit or generate only in CI?~~
    **✅ Answered, and reality diverged:** the catalog is generated in CI **and gitignored**
-   (`preview/.gitignore` → `src/catalog.json`), but it is **`import`ed and bundled**, not fetched.
+   (`site/.gitignore` → `src/catalog.json`), but it is **`import`ed and bundled**, not fetched.
    Consequently it is *not* a place data can be authored — which is exactly why SPEC-01 puts keywords
    in a **committed sidecar** (§4.2, AC-19) rather than in the catalog.
 3. Single plugin vs a monorepo of several — the `id` scheme already supports it; confirm.

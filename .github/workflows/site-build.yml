@@ -1,26 +1,26 @@
-name: Preview build
+name: Site build
 
-# CI check for the marketplace UI preview only: verifies `preview/` builds.
+# CI check for the marketplace UI only: verifies `site/` builds.
 # Deliberately SEPARATE from any marketplace/harness validation and from the
-# Pages deploy — so on a PR you get a distinct "Preview build / build" status
+# Pages deploy — so on a PR you get a distinct "Site build / build" status
 # that is not mixed with other checks.
 
 on:
   pull_request:
     paths:
-      - "preview/**"
+      - "site/**"
       - "plugins/**"
       - ".claude-plugin/marketplace.json"
-      - ".github/workflows/preview-build.yml"
+      - ".github/workflows/site-build.yml"
   push:
     # Feature branches only; pushes to main are built + deployed by pages.yml.
     branches-ignore:
       - main
     paths:
-      - "preview/**"
+      - "site/**"
       - "plugins/**"
       - ".claude-plugin/marketplace.json"
-      - ".github/workflows/preview-build.yml"
+      - ".github/workflows/site-build.yml"
   workflow_dispatch:
 
 permissions:
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: preview
+        working-directory: site
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: preview/package-lock.json
+          cache-dependency-path: site/package-lock.json
 
       - name: Install dependencies
         run: npm ci

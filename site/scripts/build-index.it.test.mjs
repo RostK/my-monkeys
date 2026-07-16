@@ -1,5 +1,5 @@
 // Integration test: spawns `node scripts/build-index.mjs` for real (no mocking
-// of fs/child_process) and asserts on the actual preview/src/catalog.json it
+// of fs/child_process) and asserts on the actual site/src/catalog.json it
 // writes. Slower than a unit test on purpose — this is the only place we
 // prove the wiring in build-index.mjs (readSidecar + attachKeywords + the
 // AC-20 "never exit non-zero" guarantee) actually works end to end.
@@ -10,15 +10,15 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const PREVIEW_ROOT = resolve(HERE, ".."); // preview/
-const BUILD_SCRIPT = resolve(PREVIEW_ROOT, "scripts", "build-index.mjs");
-const CATALOG_PATH = resolve(PREVIEW_ROOT, "src", "catalog.json");
-const KEYWORDS_PATH = resolve(PREVIEW_ROOT, "data", "keywords.json");
-const KEYWORDS_BACKUP_PATH = resolve(PREVIEW_ROOT, "data", "keywords.json.it-backup");
+const SITE_ROOT = resolve(HERE, ".."); // site/
+const BUILD_SCRIPT = resolve(SITE_ROOT, "scripts", "build-index.mjs");
+const CATALOG_PATH = resolve(SITE_ROOT, "src", "catalog.json");
+const KEYWORDS_PATH = resolve(SITE_ROOT, "data", "keywords.json");
+const KEYWORDS_BACKUP_PATH = resolve(SITE_ROOT, "data", "keywords.json.it-backup");
 
 function runBuildIndex() {
   return spawnSync(process.execPath, [BUILD_SCRIPT], {
-    cwd: PREVIEW_ROOT,
+    cwd: SITE_ROOT,
     encoding: "utf8",
   });
 }

@@ -1,6 +1,6 @@
 /**
  * keywords.mjs — the single definition of the artifact content hash, plus the
- * reader/attacher for the `preview/data/keywords.json` sidecar.
+ * reader/attacher for the `site/data/keywords.json` sidecar.
  *
  * Design:
  *  - `readSidecar()` touches the filesystem and is intentionally forgiving: a
@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 export const SCHEMA_VERSION = 1;
 
-// preview/scripts/lib/keywords.mjs -> preview/data/keywords.json
+// site/scripts/lib/keywords.mjs -> site/data/keywords.json
 export const KEYWORDS_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../../data/keywords.json");
 
 const EMPTY_SIDECAR = () => ({ schemaVersion: SCHEMA_VERSION, generatedAt: null, artifacts: {} });
