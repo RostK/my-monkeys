@@ -178,10 +178,25 @@ async function runCheck() {
 
 async function runWrite() {
   const provenance = readProvenance();
+
+  // Validate-then-write-all (FIX-4c): fetch + assertVendorable BOTH schemas
+  // fully into memory first — no writes at all — so a failure partway
+  // through (e.g. schema #2's fetch or assertVendorable throwing after
+  // schema #1 already succeeded) can never leave one schema file rewritten
+  // on disk while schemas/provenance.json — the invariant this file's own
+  // header comment promises stays in lockstep with the vendored copies —
+  // still describes the old state. Only once every fetch and validation has
+  // succeeded do we perform any writes; a failure anywhere leaves the tree
+  // completely untouched.
+  const fetched = [];
   for (const { file, url } of SCHEMAS) {
-    const committedPath = join(SCHEMAS_DIR, file);
     const upstreamText = await fetchSchema(url);
     await assertVendorable(url, upstreamText);
+    fetched.push({ file, url, upstreamText });
+  }
+
+  for (const { file, url, upstreamText } of fetched) {
+    const committedPath = join(SCHEMAS_DIR, file);
     writeFileSync(committedPath, upstreamText);
     provenance[file] = {
       url,

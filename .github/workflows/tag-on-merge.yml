@@ -96,6 +96,19 @@ jobs:
           }
 
           const ZERO_SHA = "0000000000000000000000000000000000000000";
+
+          // FIX-5a — mirrors scripts/_common.sh's ensure_safe_ref_component()
+          // exactly, so the two tag-producing paths (this job, and
+          // scripts/release.sh) agree on what a safe `name` looks like
+          // before it is interpolated into a git tag below. Neither vendored
+          // JSON Schema constrains `name` beyond {type: string, minLength: 1}
+          // (AC-39 forbids editing the vendored copies), so this repo-local
+          // check is the only place this workflow can close the gap.
+          const SAFE_REF_NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
+          function isSafeRefName(value) {
+            return typeof value === "string" && value.length > 0 && !value.startsWith("-") && SAFE_REF_NAME_PATTERN.test(value);
+          }
+
           const beforeSha = process.env.PUSH_BEFORE || null;
           const afterSha = process.env.PUSH_AFTER || git(["rev-parse", "HEAD"]);
           const forced = process.env.PUSH_FORCED === "true";
@@ -171,6 +184,17 @@ jobs:
               const { name, version } = manifest;
               if (!name || !version) {
                 console.log(`::warning file=${manifestPath}::missing name/version at ${commit} — skipped`);
+                continue;
+              }
+
+              // FIX-5a — the manifest's `name` flows straight into the tag
+              // built below; skip (never crash the job) rather than let git
+              // possibly misread a hostile `name` as an option or an unsafe
+              // ref component.
+              if (!isSafeRefName(name)) {
+                console.log(
+                  `::warning file=${manifestPath}::plugin name "${name}" is not a safe git-ref component (letters, digits, ".", "_", "-" only; must not start with "-") at ${commit} — skipping tag creation`,
+                );
                 continue;
               }
 

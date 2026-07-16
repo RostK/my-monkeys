@@ -144,7 +144,20 @@ jobs:
               echo "candidate schema:"
               echo
               echo '```'
-              cat verdict.txt
+              # FIX-5c — verdict.txt is validate-manifests.mjs output, and its
+              # ajv error strings interpolate values straight from the
+              # CANDIDATE (untrusted, upstream) schema's own `required` array
+              # (e.g. a missing-property name). A hostile upstream schema
+              # could put a fence-closing "```" sequence in there and break
+              # out of this code fence into the rendered PR body. Neutralize
+              # every backtick (tr, not sed — GNU sed's default replacement
+              # escaping silently drops an unrecognized "\`" and would make
+              # this a no-op) so a run of them can never close the fence
+              # early — this is a rendering safeguard only, NOT a safety
+              # judgement on the verdict (see the wording above/below: a
+              # hostile schema that admits everything still passes AC-41
+              # cleanly; reading the diff remains the actual control).
+              tr '`' "'" < verdict.txt
               echo '```'
               echo
               echo "This is informational only — it did not block this PR from being opened and did not"

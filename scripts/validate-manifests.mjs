@@ -109,6 +109,27 @@ function resolvePluginManifestPath(entrySource, entryLabel, errors) {
     errors.push(`${entryLabel}: "source" does not contain a .claude-plugin/plugin.json: ${entrySource}`);
     return null;
   }
+
+  // FIX-5b — the containment re-check above (:90-105) validated `resolved`
+  // (the `source` directory itself), but `.claude-plugin/plugin.json` is
+  // joined on afterward and read without a second check. A fork PR
+  // committing `plugins/x/.claude-plugin` as a symlink to an outside
+  // directory would pass the check above yet still resolve to an arbitrary
+  // file here. Re-run containment on the FINAL manifest path once resolved.
+  let realManifestPath;
+  try {
+    realManifestPath = realpathSync(manifestPath);
+  } catch (err) {
+    errors.push(`${entryLabel}: could not resolve ".claude-plugin/plugin.json" — ${err.message}`);
+    return null;
+  }
+  if (!isContained(realRoot, realManifestPath)) {
+    errors.push(
+      `${entryLabel}: ".claude-plugin/plugin.json" resolves (after following symlinks) outside the repository root: ${entrySource}`,
+    );
+    return null;
+  }
+
   return manifestPath;
 }
 
@@ -116,6 +137,23 @@ function isContained(root, candidate) {
   if (candidate === root) return true;
   const rootWithSep = root.endsWith(sep) ? root : root + sep;
   return candidate.startsWith(rootWithSep);
+}
+
+// AC-16/FIX-5a — repo-local `name` shape rule. Neither vendored schema
+// constrains `name` beyond {type: string, minLength: 1} (AC-39 forbids
+// editing the vendored copies to add a `pattern`), yet a plugin's `name`
+// flows straight into a git tag (`${name}--v${version}`, see
+// .github/workflows/tag-on-merge.yml) with no shape validation there
+// either. This mirrors scripts/_common.sh's ensure_safe_ref_component()
+// exactly, so both tag-producing paths agree: git-ref-safe characters only,
+// and never a leading '-' (which git could misread as an option). All four
+// real plugin names (engineering-paved-path, research-tools,
+// architecture-review, sdd-engineering) are kebab-case and satisfy this —
+// it is a no-op on the clean tree.
+const SAFE_REF_NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+function isSafeRefName(value) {
+  return typeof value === "string" && value.length > 0 && !value.startsWith("-") && SAFE_REF_NAME_PATTERN.test(value);
 }
 
 /**
@@ -196,6 +234,14 @@ async function main() {
       if (pluginManifest && !validatePlugin(pluginManifest)) {
         errors.push(...formatAjvErrors(rel(manifestPath), validatePlugin.errors));
       }
+      // FIX-5a — repo-local rule, not a schema edit (AC-39). Only applies
+      // when `name` is a string (ajv's `required`/`type` errors above
+      // already cover a missing/non-string `name`).
+      if (pluginManifest && typeof pluginManifest.name === "string" && !isSafeRefName(pluginManifest.name)) {
+        errors.push(
+          `${rel(manifestPath)} /name must be a safe git-ref component (letters, digits, ".", "_", "-" only; must not start with "-"): "${pluginManifest.name}"`,
+        );
+      }
     });
   }
 
@@ -220,4 +266,4 @@ function reportAndExit(errors) {
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) main();
 
-export { isContained, findDuplicateNames, resolvePluginManifestPath, REPO_ROOT };
+export { isContained, findDuplicateNames, resolvePluginManifestPath, REPO_ROOT, isSafeRefName };

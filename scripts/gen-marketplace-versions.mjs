@@ -68,15 +68,21 @@ function splitTopLevelObjects(arrayBody) {
   return spans;
 }
 
-/** Find the `[ ... ]` span (offsets into `text`) of the top-level `"plugins"` array. */
+/**
+ * Find the `[ ... ]` span (offsets into `text`) of the top-level `"plugins"`
+ * array — i.e. a `"plugins"` key that is a direct child of the root object
+ * (depth 1), not a same-named key nested inside some other top-level field
+ * (e.g. a hypothetical `metadata.plugins`). Depth-aware and string-aware,
+ * using the same scanning technique as findTopLevelStringField /
+ * splitTopLevelObjects below, so a textually-earlier nested `"plugins"` key
+ * can never be mistaken for the real, top-level one.
+ */
 function findPluginsArraySpan(text) {
-  const keyMatch = text.match(/"plugins"\s*:\s*\[/);
-  if (!keyMatch) throw new Error('marketplace.json has no top-level "plugins" array');
-  const arrayStart = keyMatch.index + keyMatch[0].length - 1; // position of '['
+  const keyPattern = '"plugins"';
   let depth = 0;
   let inString = false;
   let escape = false;
-  for (let i = arrayStart; i < text.length; i++) {
+  for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (inString) {
       if (escape) escape = false;
@@ -85,16 +91,46 @@ function findPluginsArraySpan(text) {
       continue;
     }
     if (ch === '"') {
+      if (depth === 1 && text.startsWith(keyPattern, i)) {
+        let j = i + keyPattern.length;
+        while (j < text.length && /\s/.test(text[j])) j++;
+        if (text[j] === ":") {
+          let k = j + 1;
+          while (k < text.length && /\s/.test(text[k])) k++;
+          if (text[k] !== "[") {
+            throw new Error('marketplace.json top-level "plugins" field is not an array');
+          }
+          let arrDepth = 0;
+          let arrInString = false;
+          let arrEscape = false;
+          for (let m = k; m < text.length; m++) {
+            const mch = text[m];
+            if (arrInString) {
+              if (arrEscape) arrEscape = false;
+              else if (mch === "\\") arrEscape = true;
+              else if (mch === '"') arrInString = false;
+              continue;
+            }
+            if (mch === '"') {
+              arrInString = true;
+              continue;
+            }
+            if (mch === "[") arrDepth++;
+            else if (mch === "]") {
+              arrDepth--;
+              if (arrDepth === 0) return { start: k + 1, end: m };
+            }
+          }
+          throw new Error('marketplace.json "plugins" array is not terminated');
+        }
+      }
       inString = true;
       continue;
     }
-    if (ch === "[") depth++;
-    else if (ch === "]") {
-      depth--;
-      if (depth === 0) return { start: arrayStart + 1, end: i };
-    }
+    if (ch === "{" || ch === "[") depth++;
+    else if (ch === "}" || ch === "]") depth--;
   }
-  throw new Error('marketplace.json "plugins" array is not terminated');
+  throw new Error('marketplace.json has no top-level "plugins" array');
 }
 
 /**
@@ -248,9 +284,18 @@ function main() {
   }
 
   const plugins = Array.isArray(parsed.plugins) ? parsed.plugins : [];
-  const arraySpan = findPluginsArraySpan(original);
-  const arrayBody = original.slice(arraySpan.start, arraySpan.end);
-  const objectSpans = splitTopLevelObjects(arrayBody);
+  let arraySpan;
+  let arrayBody;
+  let objectSpans;
+  try {
+    arraySpan = findPluginsArraySpan(original);
+    arrayBody = original.slice(arraySpan.start, arraySpan.end);
+    objectSpans = splitTopLevelObjects(arrayBody);
+  } catch (err) {
+    console.error(`gen:marketplace FAILED — ${rel(MARKETPLACE_PATH)}: ${err.message}`);
+    process.exitCode = 1;
+    return;
+  }
 
   if (objectSpans.length !== plugins.length) {
     console.error(
