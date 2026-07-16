@@ -4,8 +4,8 @@
  *
  * One script, two modes (AC-39 / AC-40's engine):
  *   --check   fetch each schema from its recorded provenance URL and diff it,
- *             byte-for-byte, against the committed copy in schemas/. Exits
- *             non-zero and names the file on any drift. Never writes.
+ *             byte-for-byte, against the committed copy in schemas/. Names
+ *             the file on any problem. Never writes.
  *   --write   fetch each schema, assert it is still vendorable (valid JSON,
  *             no external `$ref`), overwrite the committed copy with the
  *             byte-exact fetched content, and restamp schemas/provenance.json
@@ -14,6 +14,23 @@
  *
  * This is also AC-40's drift-detection engine: a scheduled workflow runs
  * `--check`; on drift it can re-run `--write` and open a PR with the diff.
+ *
+ * `--check` exit-code contract (FIX-3a — the two failure shapes below are
+ * NOT interchangeable; a caller that treats them the same tells a
+ * drift-shaped story for what may only be "upstream unreachable"):
+ *   0 = in sync — every committed copy byte-matches its upstream URL.
+ *   1 = real drift — at least one committed copy differs from a
+ *       successfully-fetched upstream, or a schema has no committed copy at
+ *       all. Actionable: run `--write` to refresh it. Takes priority over 2
+ *       when both occur in the same run (a real, confirmed problem exists).
+ *   2 = fetch/transport failure, no confirmed drift — upstream could not be
+ *       reached for at least one schema (DNS, network, non-2xx, ...) and no
+ *       genuine drift was found among whichever schemas DID fetch
+ *       successfully. This is NOT drift: re-running `--check` once the
+ *       network recovers is the right next step, not `--write`. A caller
+ *       that doesn't distinguish 1 from 2 and always retries with `--write`
+ *       on any non-zero exit is no worse off than before this contract
+ *       existed — `--write` will itself fail on the same unreachable host.
  *
  * Usage:
  *   node scripts/vendor-schemas.mjs --check
@@ -106,11 +123,17 @@ function readProvenance() {
 }
 
 async function runCheck() {
-  const problems = [];
+  // Two distinct failure shapes, kept in separate buckets so the exit code
+  // can tell them apart (see the exit-code contract in the header comment):
+  // driftProblems = a confirmed difference between upstream and committed
+  // (or a missing committed copy); fetchProblems = upstream was unreachable,
+  // so drift could not even be determined for that schema.
+  const driftProblems = [];
+  const fetchProblems = [];
   for (const { file, url } of SCHEMAS) {
     const committedPath = join(SCHEMAS_DIR, file);
     if (!existsSync(committedPath)) {
-      problems.push(`${rel(committedPath)}: no committed copy found`);
+      driftProblems.push(`${rel(committedPath)}: no committed copy found`);
       continue;
     }
     const committed = readFileSync(committedPath, "utf8");
@@ -118,11 +141,11 @@ async function runCheck() {
     try {
       upstream = await fetchSchema(url);
     } catch (err) {
-      problems.push(`${rel(committedPath)}: could not fetch ${url} — ${err.message}`);
+      fetchProblems.push(`${rel(committedPath)}: could not fetch ${url} — ${err.message}`);
       continue;
     }
     if (upstream !== committed) {
-      problems.push(
+      driftProblems.push(
         `${rel(committedPath)}: drift detected — committed copy (${committed.length} bytes, sha256 ${sha256(committed)}) differs from upstream ${url} (${upstream.length} bytes, sha256 ${sha256(upstream)})`,
       );
     } else {
@@ -130,13 +153,26 @@ async function runCheck() {
     }
   }
 
-  if (problems.length > 0) {
-    console.error("schemas:check FAILED — vendored copy is out of date:");
-    for (const p of problems) console.error(`  - ${p}`);
+  if (driftProblems.length > 0) {
+    console.error("schemas:check FAILED — vendored copy is out of date (real drift):");
+    for (const p of driftProblems) console.error(`  - ${p}`);
+    if (fetchProblems.length > 0) {
+      console.error("Also could not verify the following (treat separately — not drift):");
+      for (const p of fetchProblems) console.error(`  - ${p}`);
+    }
     console.error("Run `npm run schemas:update` to refresh the vendored copy.");
     process.exitCode = 1;
     return;
   }
+
+  if (fetchProblems.length > 0) {
+    console.error("schemas:check FAILED — could not reach upstream to verify drift (not drift itself):");
+    for (const p of fetchProblems) console.error(`  - ${p}`);
+    console.error("This is a fetch/transport failure, not confirmed drift — retry once upstream is reachable.");
+    process.exitCode = 2;
+    return;
+  }
+
   console.log("schemas:check OK — both vendored copies match their upstream URL.");
 }
 

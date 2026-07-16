@@ -98,7 +98,7 @@ restating it. There are two tag families:
 scripts/release.sh 1.1.0 --plugin sdd-engineering
 
 # Cut a marketplace-wide release (Family-M): validate, tag v<version>, push.
-scripts/release.sh 1.0.0
+scripts/release.sh 2.5.0
 
 # Preview without changing anything:
 scripts/release.sh 2.0.0 --dry-run

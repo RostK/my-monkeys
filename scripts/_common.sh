@@ -65,6 +65,15 @@ ensure_branch() {
 # root `npm run validate:manifests` (ajv, draft-07 + ajv-formats, against the
 # repo's committed schemas — see scripts/validate-manifests.mjs) rather than
 # the `claude` CLI, which this repo's scripts no longer depend on.
+#
+# Distinguishes two distinct failure causes rather than letting a missing
+# `node_modules` masquerade as a broken catalog:
+#   - node/npm missing from PATH, or root deps never installed (`npm ci`)
+#     -> an actionable, named-cause message, not npm's raw ERR_MODULE_NOT_FOUND
+#        stack trace.
+#   - the catalog itself fails schema/containment validation -> unchanged.
+# Both still fail closed (non-zero exit); this never auto-runs `npm ci` —
+# that would be a surprising side effect for a release script to take.
 validate_marketplace() {
   if [[ "${SKIP_VALIDATE:-0}" == "1" ]]; then
     warn "Skipping marketplace validation (SKIP_VALIDATE=1)."
@@ -72,6 +81,13 @@ validate_marketplace() {
   fi
   command -v node >/dev/null 2>&1 \
     || die "'node' not found on PATH — marketplace validation ('npm run validate:manifests') requires it. Install Node.js, or set SKIP_VALIDATE=1 to skip validation."
+  command -v npm >/dev/null 2>&1 \
+    || die "'npm' not found on PATH — marketplace validation ('npm run validate:manifests') requires it. Install Node.js (it bundles npm), or set SKIP_VALIDATE=1 to skip validation."
+  local root
+  root="$(repo_root)"
+  if [[ ! -d "$root/node_modules/ajv" ]]; then
+    die "Root dependencies not installed (node_modules/ajv missing) — marketplace validation ('npm run validate:manifests') needs them. Run \`npm ci\` (or \`npm install\`) at the repo root first, or set SKIP_VALIDATE=1 to skip validation."
+  fi
   log "Validating marketplace: npm run validate:manifests"
   npm run --silent validate:manifests \
     || die "Marketplace validation failed. Fix it, or set SKIP_VALIDATE=1 to skip validation."

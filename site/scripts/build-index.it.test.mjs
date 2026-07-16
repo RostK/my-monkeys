@@ -3,6 +3,14 @@
 // writes. Slower than a unit test on purpose — this is the only place we
 // prove the wiring in build-index.mjs (readSidecar + attachKeywords + the
 // AC-20 "never exit non-zero" guarantee) actually works end to end.
+//
+// AC-20's "never exit non-zero" guarantee is SCOPED TO KEYWORD STALENESS
+// ONLY (a stale/drifted contentHash in the keywords sidecar — see the test
+// below this one): that's a warn-and-continue case by design. Version drift
+// between plugin.json and marketplace.json (AC-35, further below) is a
+// DIFFERENT cause and deliberately DOES exit non-zero — do not read this
+// comment as forbidding that, and do not "fix" AC-35 back into a warning
+// because of it.
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, copyFileSync, mkdirSync, rmSync } from "node:fs";

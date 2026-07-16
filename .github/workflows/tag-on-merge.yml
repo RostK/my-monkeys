@@ -17,9 +17,12 @@ name: Tag on merge
 # (`plugins/*/.claude-plugin/plugin.json`), since only a version bump in a
 # plugin manifest can ever produce a new Family-P tag.
 #
-# Actions are SHA-pinned in this file only (supply chain, PLAN-02 SPEC-02
-# R-6) because of the write grant — elsewhere in the repo the convention is
-# an unpinned major tag (`@v4`), left as-is.
+# Actions here are SHA-pinned (supply chain, PLAN-02 SPEC-02 R-6) because of
+# the write grant. The repo-wide convention: every PRIVILEGED workflow
+# (this file, and .github/workflows/schema-drift.yml — the only other job
+# holding a write grant) SHA-pins its actions; every UNPRIVILEGED workflow
+# (pages.yml, site-build.yml, marketplace-validate.yml) stays on an
+# unpinned major tag (`@v4`), left as-is (NF-3).
 
 on:
   push:
@@ -51,11 +54,15 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          # Only need the pushed commit and its immediate parent to see
-          # which plugin.json version fields actually changed.
-          fetch-depth: 2
+          # A `push` to main can carry more than one commit (non-squash
+          # merge, or a direct multi-commit push). The version-change walk
+          # below needs to inspect every commit in `before..after`, so this
+          # needs the FULL history, not just the pushed commit's immediate
+          # parent — fetch-depth: 2 silently hid intermediate commits'
+          # version bumps (see the run step below).
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -63,13 +70,18 @@ jobs:
           node-version: 20
 
       - name: Create Family-P tag for any plugin version change
+        env:
+          # `github.event.before`/`.after`/`.forced` are only populated on a
+          # `push` event; empty on `workflow_dispatch`. The script below
+          # treats an empty/unset PUSH_AFTER as "tag whatever is at HEAD".
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+          PUSH_FORCED: ${{ github.event.forced }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           node --input-type=module <<'NODE_EOF'
           import { execFileSync } from "node:child_process";
-          import { existsSync, readdirSync, readFileSync } from "node:fs";
-          import path from "node:path";
 
           function git(args) {
             return execFileSync("git", args, { encoding: "utf8" }).trim();
@@ -83,55 +95,114 @@ jobs:
             }
           }
 
-          if (!gitOk(["rev-parse", "-q", "--verify", "HEAD~1"])) {
-            console.log("No parent commit available to diff against — nothing to tag.");
-            process.exit(0);
+          const ZERO_SHA = "0000000000000000000000000000000000000000";
+          const beforeSha = process.env.PUSH_BEFORE || null;
+          const afterSha = process.env.PUSH_AFTER || git(["rev-parse", "HEAD"]);
+          const forced = process.env.PUSH_FORCED === "true";
+
+          // A `push` to main can carry more than one commit (a non-squash
+          // merge, or a direct multi-commit push). Walk every commit in
+          // `before..after` — not just the head commit — so an intermediate
+          // commit's plugin.json version bump is never skipped (that gap is
+          // exactly what let 3 versions ship untagged before the backfill).
+          //
+          // Two edge cases GitHub documents for the `push` event, handled
+          // explicitly rather than left to crash or silently misbehave:
+          //  - `before` is all-zeros on a branch's first push (or certain
+          //    history-rewrite cases GitHub can't diff) — there is no usable
+          //    pre-image, so fall back to inspecting only the head commit.
+          //  - `forced` is true — a force-push means `before..after` is not
+          //    guaranteed to be a fast-forward range (history was rewritten
+          //    server-side), so walking it could miss or misattribute
+          //    commits. Fall back to the head commit rather than trust a
+          //    range that may not describe what actually landed.
+          let commits;
+          const beforeUsable =
+            beforeSha &&
+            beforeSha !== ZERO_SHA &&
+            !forced &&
+            gitOk(["rev-parse", "-q", "--verify", `${beforeSha}^{commit}`]) &&
+            gitOk(["merge-base", "--is-ancestor", beforeSha, afterSha]);
+
+          if (beforeUsable) {
+            commits = git(["rev-list", "--first-parent", "--reverse", `${beforeSha}..${afterSha}`])
+              .split("\n")
+              .filter(Boolean);
+            if (commits.length === 0) {
+              console.log("Pushed range is empty (before == after) — nothing to tag.");
+            }
+          } else {
+            const reason = !beforeSha || beforeSha === ZERO_SHA
+              ? "'before' is unset or all-zeros (first push on this branch, or an event GitHub can't diff)"
+              : forced
+                ? "this was a force-push ('forced' is true) — before..after may not be a fast-forward range"
+                : "'before' is not a known ancestor of 'after' in local history";
+            console.log(`Falling back to inspecting only the head commit: ${reason}.`);
+            commits = [afterSha];
           }
 
           const pluginsDir = "plugins";
-          const dirNames = existsSync(pluginsDir) ? readdirSync(pluginsDir) : [];
           let created = 0;
 
-          for (const dirName of dirNames) {
-            const manifestPath = path.posix.join("plugins", dirName, ".claude-plugin", "plugin.json");
-            if (!existsSync(manifestPath)) continue;
+          for (const commit of commits) {
+            if (!gitOk(["rev-parse", "-q", "--verify", `${commit}^{commit}`])) {
+              console.log(`::warning::commit ${commit} not found in local history — skipped (check fetch-depth).`);
+              continue;
+            }
+            const parentExists = gitOk(["rev-parse", "-q", "--verify", `${commit}~1`]);
 
-            let manifest;
+            let manifestPaths;
             try {
-              manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+              manifestPaths = git(["ls-tree", "-r", "--name-only", commit, "--", pluginsDir])
+                .split("\n")
+                .filter((p) => p.endsWith("/.claude-plugin/plugin.json"));
             } catch {
-              console.log(`::warning file=${manifestPath}::not valid JSON — skipped`);
-              continue;
-            }
-            const { name, version } = manifest;
-            if (!name || !version) {
-              console.log(`::warning file=${manifestPath}::missing name/version — skipped`);
-              continue;
+              manifestPaths = [];
             }
 
-            let oldVersion = null;
-            try {
-              const raw = git(["show", `HEAD~1:${manifestPath}`]);
-              oldVersion = JSON.parse(raw).version ?? null;
-            } catch {
-              oldVersion = null; // did not exist at HEAD~1 — treat as a new release
+            for (const manifestPath of manifestPaths) {
+              let manifest;
+              try {
+                manifest = JSON.parse(git(["show", `${commit}:${manifestPath}`]));
+              } catch {
+                console.log(`::warning file=${manifestPath}::not valid JSON at ${commit} — skipped`);
+                continue;
+              }
+              const { name, version } = manifest;
+              if (!name || !version) {
+                console.log(`::warning file=${manifestPath}::missing name/version at ${commit} — skipped`);
+                continue;
+              }
+
+              let oldVersion = null;
+              if (parentExists) {
+                try {
+                  const raw = git(["show", `${commit}~1:${manifestPath}`]);
+                  oldVersion = JSON.parse(raw).version ?? null;
+                } catch {
+                  oldVersion = null; // did not exist at the parent — treat as a new release
+                }
+              }
+
+              if (oldVersion === version) continue;
+
+              const tag = `${name}--v${version}`;
+
+              // Idempotent: create-if-absent, no-op-if-exists, never fail-on-exists.
+              if (gitOk(["rev-parse", "-q", "--verify", `refs/tags/${tag}`])) {
+                console.log(`Tag ${tag} already exists — no-op (idempotent).`);
+                continue;
+              }
+
+              console.log(`Tagging ${commit} as ${tag}`);
+              // Explicit target commit — without it, `git tag -a` defaults
+              // to HEAD, which silently collapses every tag in a
+              // multi-commit push onto the final commit instead of the one
+              // that actually changed the version.
+              git(["tag", "-a", tag, "-m", `Release ${name} ${version}`, commit]);
+              git(["push", "origin", `refs/tags/${tag}`]);
+              created++;
             }
-
-            if (oldVersion === version) continue;
-
-            const tag = `${name}--v${version}`;
-
-            // Idempotent: create-if-absent, no-op-if-exists, never fail-on-exists.
-            if (gitOk(["rev-parse", "-q", "--verify", `refs/tags/${tag}`])) {
-              console.log(`Tag ${tag} already exists — no-op (idempotent).`);
-              continue;
-            }
-
-            const sha = git(["rev-parse", "HEAD"]);
-            console.log(`Tagging ${sha} as ${tag}`);
-            git(["tag", "-a", tag, "-m", `Release ${name} ${version}`]);
-            git(["push", "origin", `refs/tags/${tag}`]);
-            created++;
           }
 
           console.log(`Created ${created} tag(s).`);
@@ -168,7 +239,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout (full history + tags — the first-parent walk needs the whole line)
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           fetch-tags: true

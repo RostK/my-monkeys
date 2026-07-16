@@ -20,9 +20,14 @@
  *                                                        # non-zero + names the
  *                                                        # diff if out of sync
  */
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+// AC-33 containment — reuse validate-manifests.mjs's tested, symlink-aware
+// `resolvePluginManifestPath` rather than re-deriving the path with a bare
+// `join(resolve(...))` that has no containment check. Importing is safe:
+// that module guards its CLI entry point behind an `isMain` check.
+import { resolvePluginManifestPath } from "./validate-manifests.mjs";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const MARKETPLACE_PATH = join(REPO_ROOT, ".claude-plugin", "marketplace.json");
@@ -93,42 +98,136 @@ function findPluginsArraySpan(text) {
 }
 
 /**
+ * Locate the raw text span of a top-level (depth-1) string-valued key inside
+ * an object's raw text (which must start at its own `{`), string-aware and
+ * depth-tracking exactly like splitTopLevelObjects/findPluginsArraySpan, so a
+ * same-named key nested inside a nested object/array (e.g. a `dependencies`
+ * entry's own "version") is never mistaken for this object's own field —
+ * regardless of whether that nested structure appears before or after the
+ * real field in the text.
+ *
+ * In valid JSON, a quoted string immediately followed (after whitespace) by
+ * `:` is always a *key*, never a value — a value can only be followed by `,`
+ * `}` or `]` — so this needs no separate "expecting a key" state machine.
+ *
+ * Returns `{ valueStart, valueEnd }` (offsets of the value's own quotes,
+ * inclusive) or `null` if `keyName` has no top-level string-valued match.
+ */
+function findTopLevelStringField(objectText, keyName) {
+  const keyPattern = `"${keyName}"`;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < objectText.length; i++) {
+    const ch = objectText[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      if (depth === 1 && objectText.startsWith(keyPattern, i)) {
+        let j = i + keyPattern.length;
+        while (j < objectText.length && /\s/.test(objectText[j])) j++;
+        if (objectText[j] === ":") {
+          let k = j + 1;
+          while (k < objectText.length && /\s/.test(objectText[k])) k++;
+          if (objectText[k] === '"') {
+            let vi = k + 1;
+            let vEscape = false;
+            while (vi < objectText.length) {
+              const vch = objectText[vi];
+              if (vEscape) vEscape = false;
+              else if (vch === "\\") vEscape = true;
+              else if (vch === '"') break;
+              vi++;
+            }
+            return { valueStart: k, valueEnd: vi + 1 };
+          }
+          // A top-level "version" whose value isn't a JSON string — not a
+          // shape this generator understands; treat as "not found" so the
+          // caller's existing not-found handling (untouched, unmatched) applies.
+          return null;
+        }
+      }
+      inString = true;
+      continue;
+    }
+    if (ch === "{" || ch === "[") depth++;
+    else if (ch === "}" || ch === "]") depth--;
+  }
+  return null;
+}
+
+/**
  * Within one entry's raw object substring, replace the value of its own
- * (first, top-level-in-this-object) "version" field. Because `source`
- * precedes `version` and `dependencies` (which may contain nested `version`
- * fields) always follows it in every entry today, the first "version"
- * occurrence in the substring is always the entry's own field.
+ * top-level "version" field — found via findTopLevelStringField, so a nested
+ * `dependencies[].version` is never touched regardless of field order.
  */
 function replaceEntryVersion(entryText, newVersion) {
-  const m = entryText.match(/"version"\s*:\s*"([^"]*)"/);
-  if (!m) return { text: entryText, changed: false };
-  if (m[1] === newVersion) return { text: entryText, changed: false };
-  const before = entryText.slice(0, m.index);
-  const after = entryText.slice(m.index + m[0].length);
-  const replaced = m[0].replace(/"([^"]*)"$/, `"${newVersion}"`);
-  return { text: `${before}${replaced}${after}`, changed: true };
+  const field = findTopLevelStringField(entryText, "version");
+  if (!field) return { text: entryText, changed: false };
+  const currentValue = entryText.slice(field.valueStart + 1, field.valueEnd - 1);
+  if (currentValue === newVersion) return { text: entryText, changed: false };
+  const before = entryText.slice(0, field.valueStart);
+  const after = entryText.slice(field.valueEnd);
+  return { text: `${before}"${newVersion}"${after}`, changed: true };
+}
+
+/**
+ * Round-trip guard (defense-in-depth for the text surgery above): compares
+ * the re-parsed regenerated structure against the original parsed structure,
+ * asserting every `plugins[]` entry's `version` now equals its authoritative
+ * value and that nothing else — in that entry or anywhere else in the file
+ * — changed. `JSON.stringify` comparison is intentionally order-sensitive:
+ * a key-order change would violate AC-18's byte-stability contract too, so
+ * it must trip the guard, not just a deep-equal.
+ *
+ * Returns `null` when the regeneration is verified correct, or a
+ * human-readable reason string when it is not.
+ */
+function verifyRegeneration(originalParsed, regeneratedParsed, authoritativeVersions) {
+  const origPlugins = Array.isArray(originalParsed?.plugins) ? originalParsed.plugins : [];
+  const newPlugins = Array.isArray(regeneratedParsed?.plugins) ? regeneratedParsed.plugins : [];
+  if (origPlugins.length !== newPlugins.length) {
+    return `plugins array length changed (${origPlugins.length} -> ${newPlugins.length})`;
+  }
+  for (let i = 0; i < origPlugins.length; i++) {
+    const name = origPlugins[i]?.name ?? `#${i}`;
+    const expected = authoritativeVersions[i];
+    if (newPlugins[i]?.version !== expected) {
+      return `plugins[${i}] ("${name}") version is ${JSON.stringify(newPlugins[i]?.version)}, expected ${JSON.stringify(expected)}`;
+    }
+    const { version: _origV, ...origRest } = origPlugins[i] ?? {};
+    const { version: _newV, ...newRest } = newPlugins[i] ?? {};
+    if (JSON.stringify(origRest) !== JSON.stringify(newRest)) {
+      return `plugins[${i}] ("${name}") changed a field other than "version"`;
+    }
+  }
+  const { plugins: _op, ...origTop } = originalParsed ?? {};
+  const { plugins: _np, ...newTop } = regeneratedParsed ?? {};
+  if (JSON.stringify(origTop) !== JSON.stringify(newTop)) {
+    return `top-level fields outside "plugins" changed`;
+  }
+  return null;
 }
 
 function resolveAuthoritativeVersion(entry, errors) {
-  const source = entry?.source;
-  if (typeof source !== "string" || source.length === 0) {
-    errors.push(`plugins entry "${entry?.name ?? "?"}": no "source" — skipped`);
-    return null;
-  }
-  const manifestPath = join(resolve(REPO_ROOT, source), ".claude-plugin", "plugin.json");
-  if (!existsSync(manifestPath)) {
-    errors.push(`plugins entry "${entry?.name ?? "?"}": ${rel(manifestPath)} not found — skipped`);
-    return null;
-  }
+  const entryLabel = `plugins entry "${entry?.name ?? "?"}"`;
+  // AC-33: containment-checked resolution (rejects absolute/traversing
+  // `source`, re-checks after following symlinks) — see the import comment.
+  const manifestPath = resolvePluginManifestPath(entry?.source, entryLabel, errors);
+  if (!manifestPath) return null;
   let manifest;
   try {
     manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   } catch (err) {
-    errors.push(`plugins entry "${entry?.name ?? "?"}": ${rel(manifestPath)} is not valid JSON — ${err.message}`);
+    errors.push(`${entryLabel}: ${rel(manifestPath)} is not valid JSON — ${err.message}`);
     return null;
   }
   if (typeof manifest.version !== "string") {
-    errors.push(`plugins entry "${entry?.name ?? "?"}": ${rel(manifestPath)} has no "version" — skipped`);
+    errors.push(`${entryLabel}: ${rel(manifestPath)} has no "version" — skipped`);
     return null;
   }
   return manifest.version;
@@ -165,6 +264,7 @@ function main() {
   let cursor = 0;
   let changedCount = 0;
   const changedNames = [];
+  const authoritativeVersions = [];
 
   objectSpans.forEach((span, i) => {
     rebuiltArrayBody += arrayBody.slice(cursor, span.start);
@@ -173,9 +273,14 @@ function main() {
     const authoritative = resolveAuthoritativeVersion(entry, errors);
     if (authoritative === null) {
       rebuiltArrayBody += entryText;
+      // A skipped entry still needs a slot so authoritativeVersions[i] lines
+      // up with plugins[i]; errors.length > 0 always short-circuits before
+      // this array is used, so the placeholder value is never read.
+      authoritativeVersions.push(entry?.version);
     } else {
       const { text, changed } = replaceEntryVersion(entryText, authoritative);
       rebuiltArrayBody += text;
+      authoritativeVersions.push(authoritative);
       if (changed) {
         changedCount++;
         changedNames.push(entry.name);
@@ -199,6 +304,28 @@ function main() {
     return;
   }
 
+  // Round-trip guard — re-parse the regenerated text and verify the surgery
+  // did exactly what was intended and nothing else, before this function is
+  // ever allowed to write it out (fails closed; writes nothing on mismatch).
+  let reparsed;
+  try {
+    reparsed = JSON.parse(regenerated);
+  } catch (err) {
+    console.error(
+      `gen:marketplace FAILED — internal error: the regenerated ${rel(MARKETPLACE_PATH)} text is not valid JSON — ${err.message}. Nothing was written.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  const guardError = verifyRegeneration(parsed, reparsed, authoritativeVersions);
+  if (guardError) {
+    console.error(
+      `gen:marketplace FAILED — regeneration guard tripped on ${rel(MARKETPLACE_PATH)}: ${guardError}. Nothing was written.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   if (checkOnly) {
     console.error(`check:marketplace FAILED — ${rel(MARKETPLACE_PATH)} is out of sync with plugin.json versions:`);
     for (const name of changedNames) console.error(`  - "${name}" version needs regenerating`);
@@ -216,4 +343,4 @@ function main() {
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) main();
 
-export { splitTopLevelObjects, findPluginsArraySpan, replaceEntryVersion };
+export { splitTopLevelObjects, findPluginsArraySpan, replaceEntryVersion, verifyRegeneration };
