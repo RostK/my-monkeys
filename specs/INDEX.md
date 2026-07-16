@@ -9,6 +9,7 @@ Status: `draft` → `approved` → `implemented` (or `superseded`). A spec with 
 | Spec ID | Date | Feature | Module | Status | Supersedes | File |
 | --- | --- | --- | --- | --- | --- | --- |
 | SPEC-01 | 2026-07-14 | Lexical search engine (MiniSearch/BM25) + baked keyword enrichment | `site` | **approved** | `docs/SPEC-marketplace-ui.md` §5–§6 (embeddings + RRF), in part | [specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md](site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md) |
+| SPEC-02 | 2026-07-16 | Governance documents, marketplace CI validation, and an authoritative release-tag invariant | `repo` | **approved** | — | [specs/repo/SPEC-02-2026-07-16-governance-docs-ci-and-release-tagging.md](repo/SPEC-02-2026-07-16-governance-docs-ci-and-release-tagging.md) |
 
 ## Note on `docs/SPEC-*.md`
 
