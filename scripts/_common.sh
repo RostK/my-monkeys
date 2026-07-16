@@ -60,17 +60,37 @@ ensure_branch() {
   fi
 }
 
+# validate_marketplace — AC-21: hard-fail when validation cannot run, never
+# warn-and-continue. `SKIP_VALIDATE=1` is the ONLY opt-out. Routes through the
+# root `npm run validate:manifests` (ajv, draft-07 + ajv-formats, against the
+# repo's committed schemas — see scripts/validate-manifests.mjs) rather than
+# the `claude` CLI, which this repo's scripts no longer depend on.
+#
+# Distinguishes two distinct failure causes rather than letting a missing
+# `node_modules` masquerade as a broken catalog:
+#   - node/npm missing from PATH, or root deps never installed (`npm ci`)
+#     -> an actionable, named-cause message, not npm's raw ERR_MODULE_NOT_FOUND
+#        stack trace.
+#   - the catalog itself fails schema/containment validation -> unchanged.
+# Both still fail closed (non-zero exit); this never auto-runs `npm ci` —
+# that would be a surprising side effect for a release script to take.
 validate_marketplace() {
   if [[ "${SKIP_VALIDATE:-0}" == "1" ]]; then
     warn "Skipping marketplace validation (SKIP_VALIDATE=1)."
     return 0
   fi
-  if command -v claude >/dev/null 2>&1; then
-    log "Validating marketplace: claude plugin validate ."
-    claude plugin validate . || die "Marketplace validation failed. Fix it or set SKIP_VALIDATE=1."
-  else
-    warn "'claude' CLI not found on PATH — skipping validation (install Claude Code, or set SKIP_VALIDATE=1 to silence)."
+  command -v node >/dev/null 2>&1 \
+    || die "'node' not found on PATH — marketplace validation ('npm run validate:manifests') requires it. Install Node.js, or set SKIP_VALIDATE=1 to skip validation."
+  command -v npm >/dev/null 2>&1 \
+    || die "'npm' not found on PATH — marketplace validation ('npm run validate:manifests') requires it. Install Node.js (it bundles npm), or set SKIP_VALIDATE=1 to skip validation."
+  local root
+  root="$(repo_root)"
+  if [[ ! -d "$root/node_modules/ajv" ]]; then
+    die "Root dependencies not installed (node_modules/ajv missing) — marketplace validation ('npm run validate:manifests') needs them. Run \`npm ci\` (or \`npm install\`) at the repo root first, or set SKIP_VALIDATE=1 to skip validation."
   fi
+  log "Validating marketplace: npm run validate:manifests"
+  npm run --silent validate:manifests \
+    || die "Marketplace validation failed. Fix it, or set SKIP_VALIDATE=1 to skip validation."
 }
 
 confirm() {
@@ -78,4 +98,43 @@ confirm() {
   local prompt="${1:-Proceed?}" reply
   read -r -p "$prompt [y/N] " reply
   [[ "$reply" == "y" || "$reply" == "Y" ]]
+}
+
+# --- Tag grammar (AC-17) -----------------------------------------------
+#   Family P — per-plugin release: <plugin>--v<X.Y.Z>  (the 4 real tags today)
+#   Family M — marketplace-wide snapshot: v<X.Y.Z>
+#
+# Ref-injection defense-in-depth: a computed tag is always passed to git as
+# its own argv element (never interpolated into a shell string), and
+# ensure_safe_ref_component() rejects a plugin name that could be
+# misread as a git option or contain characters unsafe in a ref.
+
+# family_p_tag <plugin> <version> — echoes the Family-P tag name.
+family_p_tag() {
+  local plugin="$1"
+  local version="$2"
+  printf '%s--v%s' "$plugin" "$version"
+}
+
+# family_m_tag <version> — echoes the Family-M tag name.
+family_m_tag() {
+  local version="$1"
+  printf 'v%s' "$version"
+}
+
+# tag_exists <tag> — true if refs/tags/<tag> already exists. <tag> is always
+# passed as a literal argv value, never shell-interpolated.
+tag_exists() {
+  local tag="$1"
+  git rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1
+}
+
+# ensure_safe_ref_component <value> <label> — dies if <value> could be
+# misread as a git option (leading '-') or contains characters not safe to
+# embed in a git ref / tag name.
+ensure_safe_ref_component() {
+  local value="$1"
+  local label="$2"
+  [[ "$value" != -* ]] || die "$label '$value' must not start with '-'."
+  [[ "$value" =~ ^[A-Za-z0-9._-]+$ ]] || die "$label '$value' contains characters not allowed in a git ref."
 }

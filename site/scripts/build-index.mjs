@@ -102,7 +102,21 @@ for (const entry of marketplace.plugins || []) {
   const manifest = existsSync(manifestPath) ? readJson(manifestPath) : {};
   const pluginName = manifest.name || entry.name;
   const keywords = Array.isArray(manifest.keywords) ? manifest.keywords.map(String) : [];
-  const pluginVersion = manifest.version || entry.version || null;
+
+  // Version drift between plugin.json and its marketplace.json entry is a
+  // build failure, not a warning (SPEC-02 AC-35) — unlike the keyword-sidecar
+  // staleness handled above (AC-20), which only warns. A silent
+  // `manifest.version || entry.version` here would hide the disagreement.
+  const manifestVersion = manifest.version ? String(manifest.version) : null;
+  const entryVersion = entry.version ? String(entry.version) : null;
+  if (manifestVersion && entryVersion && manifestVersion !== entryVersion) {
+    console.error(
+      `[build-index] version drift for plugin "${pluginName}": ` +
+        `plugin.json has "${manifestVersion}" but marketplace.json entry has "${entryVersion}"`,
+    );
+    process.exit(1);
+  }
+  const pluginVersion = manifestVersion || entryVersion || null;
   const pluginDisplay = manifest.displayName || titleCase(pluginName);
   const pluginDesc = oneLine(manifest.description || entry.description);
 

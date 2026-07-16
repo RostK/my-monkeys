@@ -3,3 +3,7 @@
 *.sh text eol=lf
 *.mjs text eol=lf
 *.js text eol=lf
+
+# Vendored upstream schemas (AC-39) must stay byte-identical to source; disable
+# all EOL conversion so Windows checkouts don't drift from provenance.json's sha256.
+schemas/*.json -text

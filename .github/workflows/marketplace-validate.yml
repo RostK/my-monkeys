@@ -1,0 +1,82 @@
+name: Marketplace validate
+
+# CI check for the marketplace catalog itself: validates
+# `.claude-plugin/marketplace.json` and every `plugins/*/.claude-plugin/plugin.json`
+# against the repository's own COMMITTED copies of the two Claude Code JSON
+# Schemas (schemas/*.json — see AC-39), using ajv (draft-07) + ajv-formats,
+# plus the two repo-local rules ajv cannot express (AC-33 source containment,
+# AC-34 duplicate plugin names) — see scripts/validate-manifests.mjs. It also
+# asserts `.claude-plugin/marketplace.json` is the AC-18 generator's byte-exact
+# output (AC-30) — see scripts/gen-marketplace-versions.mjs.
+#
+# This job makes NO network call to json.schemastore.org: it validates only
+# against files already on the checkout. The vendoring/drift fetch against
+# the upstream schemas lives ONLY in the scheduled
+# .github/workflows/schema-drift.yml job (AC-40/AC-41) — adding a fetch here
+# would re-introduce exactly the merge-path dependency that amendment removed.
+#
+# Deliberately SEPARATE from .github/workflows/tag-on-merge.yml: this file
+# never needs a write grant, so the elevated job a fork PR's `pull_request`
+# event could reach stays out of it entirely. Follows site-build.yml's
+# stated precedent: "Deliberately SEPARATE ... so on a PR you get a distinct
+# status" (site-build.yml:3-6) — this workflow reports as
+# "Marketplace validate / validate", distinct from "Site build / build".
+#
+# Path-filter cross-reference: the `plugins/**` + `.claude-plugin/marketplace.json`
+# glob family also appears in .github/workflows/pages.yml and
+# .github/workflows/site-build.yml (that's now three workflows sharing it —
+# Actions YAML has no include/DRY mechanism, so keep all three lists in sync
+# by hand on any change to the catalog's on-disk shape). This workflow
+# additionally triggers on `schemas/**`, the root package manifest, and the
+# two scripts that implement this gate, since changes to any of those change
+# what the gate enforces (PLAN-02 SPEC-02 R-5) — without `schemas/**` here, a
+# schema-drift PR (schema-drift.yml, a sibling workflow) would merge with
+# this validation check not running at all.
+
+on:
+  pull_request:
+    paths:
+      - ".claude-plugin/marketplace.json"
+      - "plugins/**"
+      - "schemas/**"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/validate-manifests.mjs"
+      - "scripts/gen-marketplace-versions.mjs"
+      - ".github/workflows/marketplace-validate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          # Root lockfile (NF-4) — never site/. Hanging this off site/ would
+          # make every manifest-only PR pay a full vite+vitest+sharp+jsdom
+          # install for a check that only ever touches the repo root.
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate manifests against committed schemas (AC-15, AC-16, AC-33, AC-34)
+        run: npm run validate:manifests
+
+      - name: Check .claude-plugin/marketplace.json is generated, not hand-edited (AC-18, AC-30)
+        run: |
+          npm run gen:marketplace
+          if ! git diff --exit-code -- .claude-plugin/marketplace.json; then
+            echo "::error file=.claude-plugin/marketplace.json::.claude-plugin/marketplace.json is out of sync with the authoritative plugins/*/.claude-plugin/plugin.json version fields (see scripts/gen-marketplace-versions.mjs). Run 'npm run gen:marketplace' locally and commit the regenerated .claude-plugin/marketplace.json — the diff above shows exactly what changed."
+            exit 1
+          fi

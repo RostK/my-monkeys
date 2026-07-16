@@ -1,0 +1,211 @@
+name: Schema drift
+
+# Scheduled + manual-only drift check for the vendored Claude Code JSON
+# Schemas (schemas/*.json — see schemas/provenance.json for the upstream
+# URLs). This is AC-40 + AC-41 (SPEC-02):
+#
+#   AC-40 — on a schedule, compare each committed schema against its
+#     recorded upstream URL. On drift, open a PR carrying the re-vendored
+#     copy. This job NEVER runs on pull_request / pull_request_target and
+#     is NEVER a status check on a catalog PR — that non-gating property is
+#     the entire point of vendoring the schemas in the first place.
+#   AC-41 — because a PR opened by GITHUB_TOKEN does not trigger
+#     pull_request workflows, the drift PR would otherwise arrive with
+#     ZERO status checks on the highest-risk PR in this repo (a changed,
+#     possibly hostile, third-party schema that IS the merge gate). Before
+#     opening the PR, this job re-runs the AC-15 validation of the live
+#     catalog against the CANDIDATE (freshly fetched) schema and states
+#     that verdict in the PR body.
+#
+# IMPORTANT — the AC-41 verdict INFORMS, it never BLOCKS: a negative
+# verdict still opens the PR and this job still exits 0. The maintainer
+# decides. A positive verdict is NOT a safety judgement on the candidate —
+# a hostile schema that admits everything passes it cleanly. Reading the
+# diff remains the actual control; the PR body below is worded to make
+# that explicit rather than implying "review is done".
+#
+# This job holds contents:write + pull-requests:write (job-scoped, per
+# AC-37's pattern) to push the re-vendored branch and open/update the PR.
+# actions/checkout is deliberately this workflow's ONLY action — the
+# fetched schema is untrusted input, so the action surface of the
+# privileged job is kept to the minimum (no third-party PR-creation
+# action; `gh` and `node` are already on the runner).
+
+on:
+  schedule:
+    # Weekly, off-peak. Cron minute/hour offset from the top of the hour to
+    # avoid GitHub's documented top-of-hour scheduling congestion.
+    - cron: "17 3 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: schema-drift
+  cancel-in-progress: false
+
+jobs:
+  schema-drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: npm
+          # Root lockfile (NF-4) — never site/. This job only ever touches
+          # scripts/ + schemas/ at the repo root.
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for schema drift (AC-40)
+        id: check
+        run: |
+          set +e
+          node scripts/vendor-schemas.mjs --check
+          echo "drift=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Fetch candidate schemas
+        if: steps.check.outputs.drift != '0'
+        run: node scripts/vendor-schemas.mjs --write
+
+      # Extra sanity gate on the untrusted fetched body, beyond what
+      # vendor-schemas.mjs --write already asserts (valid JSON, no
+      # external $ref). A candidate that no longer declares draft-07 would
+      # make validate-manifests.mjs's ajv.compile() misbehave silently —
+      # that is a reason to fail this run loudly (AC-40's documented
+      # fallback: "a failing scheduled run naming the schema file"), not a
+      # reason to open a PR. This is a hard gate, distinct from AC-41's
+      # non-blocking verdict below. Plain grep over the file bytes — never
+      # eval, never a dynamic write path.
+      - name: Sanity-check candidate declares JSON Schema draft-07
+        if: steps.check.outputs.drift != '0'
+        run: |
+          set -e
+          for f in schemas/claude-code-marketplace.json schemas/claude-code-plugin-manifest.json; do
+            if ! grep -Eq '"\$schema"[[:space:]]*:[[:space:]]*"http://json-schema\.org/draft-07/schema#"' "$f"; then
+              echo "::error file=$f::candidate does not declare JSON Schema draft-07 — refusing to open a PR"
+              exit 1
+            fi
+          done
+
+      # AC-41: run the AC-15 validation of the live catalog against the
+      # CANDIDATE schema (now on disk — vendor-schemas.mjs --write already
+      # overwrote schemas/*.json with the fetched content). Never fail this
+      # step on a negative verdict; it is evidence for the PR body, not a
+      # gate.
+      - name: Validate catalog against candidate schema (AC-41 verdict)
+        if: steps.check.outputs.drift != '0'
+        id: verdict
+        run: |
+          set +e
+          node scripts/validate-manifests.mjs > verdict.txt 2>&1
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Compose PR body (AC-41)
+        if: steps.check.outputs.drift != '0'
+        env:
+          VERDICT_EXIT_CODE: ${{ steps.verdict.outputs.exit_code }}
+        run: |
+          {
+            echo "## Vendored JSON Schema drift detected"
+            echo
+            echo "Opened automatically by the \`schema-drift\` workflow (AC-40). It updates the"
+            echo "vendored copies in \`schemas/\` to match the upstream URLs recorded in"
+            echo "\`schemas/provenance.json\`."
+            echo
+            echo "**This is untrusted third-party input — read the diff below before merging.**"
+            echo "It is not pre-approved by anything in this repo."
+            echo
+            echo "### Catalog-compatibility check (AC-41)"
+            echo
+            if [ "$VERDICT_EXIT_CODE" = "0" ]; then
+              echo "**Verdict: POSITIVE.** The current catalog (\`.claude-plugin/marketplace.json\` +"
+              echo "every \`plugins/*/.claude-plugin/plugin.json\`) still validates cleanly against this"
+              echo "candidate schema."
+              echo
+              echo "This checks ONE thing only — whether the candidate still accepts today's catalog. It"
+              echo "is NOT a judgement that the candidate is safe or benign: a hostile schema that admits"
+              echo "everything would pass this check too. Reviewing the diff below remains the actual"
+              echo "control."
+            else
+              echo "**Verdict: NEGATIVE.** The current catalog does NOT validate cleanly against this"
+              echo "candidate schema:"
+              echo
+              echo '```'
+              # FIX-5c — verdict.txt is validate-manifests.mjs output, and its
+              # ajv error strings interpolate values straight from the
+              # CANDIDATE (untrusted, upstream) schema's own `required` array
+              # (e.g. a missing-property name). A hostile upstream schema
+              # could put a fence-closing "```" sequence in there and break
+              # out of this code fence into the rendered PR body. Neutralize
+              # every backtick (tr, not sed — GNU sed's default replacement
+              # escaping silently drops an unrecognized "\`" and would make
+              # this a no-op) so a run of them can never close the fence
+              # early — this is a rendering safeguard only, NOT a safety
+              # judgement on the verdict (see the wording above/below: a
+              # hostile schema that admits everything still passes AC-41
+              # cleanly; reading the diff remains the actual control).
+              tr '`' "'" < verdict.txt
+              echo '```'
+              echo
+              echo "This is informational only — it did not block this PR from being opened and did not"
+              echo "fail this job. A maintainer must decide whether to merge, update the catalog to match,"
+              echo "or reject the candidate."
+            fi
+            echo
+            echo "### Updated provenance"
+            echo
+            echo '```json'
+            cat schemas/provenance.json
+            echo '```'
+          } > pr-body.md
+
+      - name: Check for changes to commit
+        if: steps.check.outputs.drift != '0'
+        id: diff
+        run: |
+          if git diff --quiet -- schemas/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update the drift PR
+        if: steps.check.outputs.drift != '0' && steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: chore/schema-drift-update
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add schemas/
+          git commit -m "chore(schemas): vendor upstream JSON Schema drift"
+          # This branch is owned exclusively by this automation — a plain
+          # force push here cannot clobber anyone else's work.
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+
+          existing_pr=$(gh pr list --state open --head "$BRANCH" --base "$BASE_BRANCH" --json number --jq '.[0].number // empty')
+          if [ -n "$existing_pr" ]; then
+            gh pr edit "$existing_pr" --body-file pr-body.md
+          else
+            gh pr create \
+              --title "chore(schemas): vendor upstream JSON Schema drift" \
+              --body-file pr-body.md \
+              --head "$BRANCH" \
+              --base "$BASE_BRANCH"
+          fi

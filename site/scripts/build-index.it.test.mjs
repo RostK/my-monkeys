@@ -3,6 +3,14 @@
 // writes. Slower than a unit test on purpose — this is the only place we
 // prove the wiring in build-index.mjs (readSidecar + attachKeywords + the
 // AC-20 "never exit non-zero" guarantee) actually works end to end.
+//
+// AC-20's "never exit non-zero" guarantee is SCOPED TO KEYWORD STALENESS
+// ONLY (a stale/drifted contentHash in the keywords sidecar — see the test
+// below this one): that's a warn-and-continue case by design. Version drift
+// between plugin.json and marketplace.json (AC-35, further below) is a
+// DIFFERENT cause and deliberately DOES exit non-zero — do not read this
+// comment as forbidding that, and do not "fix" AC-35 back into a warning
+// because of it.
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, copyFileSync, mkdirSync, rmSync } from "node:fs";
@@ -11,10 +19,13 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE_ROOT = resolve(HERE, ".."); // site/
+const REPO_ROOT = resolve(SITE_ROOT, ".."); // repo root
 const BUILD_SCRIPT = resolve(SITE_ROOT, "scripts", "build-index.mjs");
 const CATALOG_PATH = resolve(SITE_ROOT, "src", "catalog.json");
 const KEYWORDS_PATH = resolve(SITE_ROOT, "data", "keywords.json");
 const KEYWORDS_BACKUP_PATH = resolve(SITE_ROOT, "data", "keywords.json.it-backup");
+const MARKETPLACE_PATH = resolve(REPO_ROOT, ".claude-plugin", "marketplace.json");
+const MARKETPLACE_BACKUP_PATH = resolve(REPO_ROOT, ".claude-plugin", "marketplace.json.it-backup");
 
 function runBuildIndex() {
   return spawnSync(process.execPath, [BUILD_SCRIPT], {
@@ -136,6 +147,44 @@ describe("build-index.mjs (integration)", () => {
       copyFileSync(KEYWORDS_BACKUP_PATH, KEYWORDS_PATH);
       rmSync(KEYWORDS_BACKUP_PATH, { force: true });
       // Restore catalog.json to the clean (non-drifted) state for subsequent tests/dev.
+      runBuildIndex();
+    }
+  });
+
+  it("fails (non-zero exit) and names BOTH values when plugin.json and marketplace.json versions disagree (AC-35)", () => {
+    // Version drift is a distinct cause from AC-20's keyword-sidecar staleness
+    // above — AC-20 only warns, but AC-35 must fail hard, so this must NOT
+    // exit 0 the way the sidecar-drift test above does.
+    mkdirSync(dirname(MARKETPLACE_BACKUP_PATH), { recursive: true });
+    copyFileSync(MARKETPLACE_PATH, MARKETPLACE_BACKUP_PATH);
+    try {
+      const pluginManifestPath = resolve(
+        REPO_ROOT,
+        "plugins",
+        "engineering-paved-path",
+        ".claude-plugin",
+        "plugin.json",
+      );
+      const manifestVersion = JSON.parse(readFileSync(pluginManifestPath, "utf8")).version;
+      const driftedVersion = "9.9.9-it-drift-test";
+
+      const marketplace = JSON.parse(readFileSync(MARKETPLACE_PATH, "utf8"));
+      const entry = marketplace.plugins.find((p) => p.name === "engineering-paved-path");
+      entry.version = driftedVersion;
+      writeFileSync(MARKETPLACE_PATH, JSON.stringify(marketplace, null, 2) + "\n");
+
+      const result = runBuildIndex();
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("engineering-paved-path");
+      expect(result.stderr).toContain(manifestVersion);
+      expect(result.stderr).toContain(driftedVersion);
+    } finally {
+      copyFileSync(MARKETPLACE_BACKUP_PATH, MARKETPLACE_PATH);
+      rmSync(MARKETPLACE_BACKUP_PATH, { force: true });
+      // The drifted run exits before writing catalog.json, so no rebuild is
+      // needed to clean it up — but rebuild anyway so a run that DID make it
+      // past the drift check (e.g. after a future fix) doesn't leave a stale
+      // catalog behind for subsequent tests/dev.
       runBuildIndex();
     }
   });
