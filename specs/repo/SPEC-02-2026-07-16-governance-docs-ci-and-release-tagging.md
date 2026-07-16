@@ -248,7 +248,16 @@ update landed), have no immutable point to resolve.
 - **AC-4.** The repository shall contain a `CODEOWNERS` file at a path GitHub honours
   (`.github/CODEOWNERS`, root, or `docs/`) whose entire content is the blanket rule `* @RostK`.
   *Verify:* file exists at an honoured path and contains exactly one non-comment line, `* @RostK`;
-  GitHub shows `@RostK` as owner on a test PR touching any path.
+  and, on GitHub's **web file view** of any tracked file, the shield-lock icon's tooltip reads
+  `Owned by @RostK (from CODEOWNERS line N)` (docs.github.com, "About code owners": *"If a file has a
+  code owner, you can see who the code owner is before you open a pull request. In the repository, you
+  can browse to the file and hover over [shield-lock icon] … 'Owned by USER or TEAM (from CODEOWNERS
+  line NUMBER)'."*). This surface needs no pull request and no branch protection (excluded by NG-6).
+  *Verify-method rationale (amendment 2026-07-16):* the earlier verify — "GitHub shows `@RostK` as
+  owner on a test PR" — is **unobservable in this repository's configuration** and was replaced.
+  GitHub does not request review from a PR's own author, and @RostK is both the sole code owner and
+  the PR author, so no "Code owners" line will ever render in that PR's sidebar. The requirement was
+  never wrong; only its verification method was.
 - **AC-5.** Every pattern in `CODEOWNERS` shall match at least one existing tracked path, and every
   named owner shall have write access to the repository.
   *Verify:* for each pattern, `git ls-files <pattern>` is non-empty; GitHub reports no "Unknown owner"
@@ -317,14 +326,25 @@ update landed), have no immutable point to resolve.
 ### 5.2 CI validation
 
 - **AC-15.** When a pull request changes `.claude-plugin/marketplace.json` or any file under
-  `plugins/**`, the CI shall validate `.claude-plugin/marketplace.json` against
-  `https://json.schemastore.org/claude-code-marketplace.json` and every
-  `plugins/*/.claude-plugin/plugin.json` against
-  `https://json.schemastore.org/claude-code-plugin-manifest.json` using **`ajv`** (draft-07), and report
-  it as a status check distinct from `Site build / build`.
+  `plugins/**`, the CI shall validate `.claude-plugin/marketplace.json` and every
+  `plugins/*/.claude-plugin/plugin.json` against the repository's **committed copies** of the two
+  Claude Code JSON Schemas (AC-39) — never against a URL fetched at run time — using **`ajv`**
+  configured for **draft-07** (plain `new Ajv()`; **not** `ajv/dist/2019` or `ajv/dist/2020`) with
+  **`ajv-formats` registered** (both schemas use `format: "uri"`, which `ajv` silently no-ops on
+  unless `ajv-formats` is added), compiled with **`compile()`** (neither schema contains an external
+  `$ref`, so `compileAsync`/`loadSchema` are unnecessary), and report it as a status check distinct
+  from `Site build / build`.
   *Verify:* open a PR touching `plugins/**`; two separately-named checks appear, and the new one's log
-  names both schema URLs and all four plugin manifests. The workflow shall **not** install or invoke the
-  `claude` CLI (rationale: §7 D-1).
+  names both committed schema paths and all four plugin manifests; **no step of the validation job
+  performs a network fetch of a schema** (no `json.schemastore.org` URL appears in any `run:`/fetch in
+  the job — the check passes with that host unreachable). The workflow shall **not** install or invoke
+  the `claude` CLI (rationale: §7 D-1).
+  *Rationale (maintainer, amendment 2026-07-16):* the earlier form made `json.schemastore.org` — a
+  community-run host, not an Anthropic domain — a hard dependency in the merge path of every catalog
+  PR, so its outage blocked every merge and its edit turned CI red with no change in this repository
+  (EC-8, UT-6). PI-11 is adopted; AC-39/AC-40 carry the vendoring and drift-detection halves, and AC-41
+  (AM-3) re-runs *this* validation against a candidate schema before its drift PR opens — so this AC's
+  logic is reused on the vendor-update path, not only on the merge path.
 - **AC-16.** If `.claude-plugin/marketplace.json` or any `plugins/*/.claude-plugin/plugin.json` fails
   its AC-15 schema, then the validation check shall fail with a non-zero exit and name the offending
   file and JSON pointer.
@@ -481,6 +501,67 @@ update landed), have no immutable point to resolve.
   document asserts that `vX.Y.Z` names a plugin's release. (No Family-M tag exists yet — NG-12; this AC
   constrains the first one.)
 
+### 5.4 Vendored schemas (amendment 2026-07-16 — PI-11 adopted)
+
+- **AC-39.** The repository shall contain **committed copies** of both Claude Code JSON Schemas — the
+  marketplace schema and the plugin-manifest schema, each **byte-identical to its upstream document** —
+  and shall record, for each copy, its upstream provenance **outside the copy itself**: the source URL
+  it was vendored from and the date (or upstream revision) at which it was vendored. These copies are
+  what AC-15 validates against.
+  *Verify:* both files exist under version control and parse as JSON; each declares
+  `"$schema": "http://json-schema.org/draft-07/schema#"`; neither contains an external `$ref`
+  (every `"$ref"` value is document-local — no `://`), which is what makes a committed copy complete
+  and `ajv.compile()` sufficient; **no copy carries an in-file provenance annotation** (no
+  `x-vendored-from`-style key, no header comment, no added or removed byte) — a fresh fetch of the
+  recorded URL is byte-identical to the committed copy at vendor time; the recorded provenance names
+  `https://json.schemastore.org/claude-code-marketplace.json` for the marketplace copy and
+  `https://json.schemastore.org/claude-code-plugin-manifest.json` for the plugin-manifest copy; and
+  the current catalog validates cleanly against both (verified by execution 2026-07-16, 5/5 clean: no
+  field either schema rejects, no required field missing — this gate does not land red on the tree it
+  is introduced to).
+  *Why provenance lives outside the copies (AM-3):* recording it **inside** a copy — an
+  `x-vendored-from` key, a header comment — makes that copy differ from upstream by construction, so
+  AC-40 would report drift forever and the vendored artifact would defeat itself. Byte-identity is the
+  invariant; *where* the provenance is written and *in what format* are HOW decisions left to the plan.
+  *Note on authority:* the host is third-party, but Anthropic's own `.claude-plugin/marketplace.json`
+  in `anthropics/claude-code` declares the marketplace URL as its `$schema` — that reference, not the
+  host, is what makes these schemas authoritative (D-1).
+- **AC-40.** A **scheduled** workflow shall compare each committed schema (AC-39) against its recorded
+  upstream URL and, on any difference, surface that difference as a **reviewable change** — a pull
+  request updating the vendored copy, or failing that a failing scheduled run naming the schema file
+  and the diff. This job shall **not** run on `pull_request` / `pull_request_target` and shall never
+  appear as a status check on a catalog PR; its failure shall not gate any merge — that
+  non-gating property is the entire point of vendoring (EC-8). Any write scope it needs to open a PR
+  shall be **job-scoped**, never workflow-level, per AC-37's pattern.
+  *Verify:* the workflow's `on:` declares `schedule` (plus `workflow_dispatch` for manual exercise)
+  and declares neither `pull_request` nor `pull_request_target`; with a vendored copy locally mutated
+  to differ from upstream, a `workflow_dispatch` run surfaces the drift naming that file; a PR
+  touching `plugins/**` shows the AC-15 check and **not** this job; the workflow declares no top-level
+  `permissions:` broader than `contents: read`.
+- **AC-41.** **Drift PRs carry a validation verdict (AM-3).** When the AC-40 job detects that a
+  candidate (freshly fetched) schema differs from its vendored copy, it shall run the AC-15 validation
+  of the current catalog **against the candidate schema** before opening the pull request, and shall
+  state that verdict in the PR body: on pass, that the catalog still validates cleanly against the
+  candidate; on fail, that it does not, naming each offending manifest and JSON pointer. A negative
+  verdict shall **inform** the reviewer and shall **not** prevent the PR from being opened, shall not
+  fail the job, and shall not become a status check on any catalog PR — AC-40's non-gating property is
+  unaffected.
+  *Verify:* trigger the job via `workflow_dispatch` against a **deliberately-broken candidate** (a
+  fetch/fixture seam that yields a schema the live catalog cannot satisfy — e.g. one requiring a field
+  no manifest declares) → the drift PR **is** opened, and its body carries a **negative** verdict
+  naming at least one `plugins/*/.claude-plugin/plugin.json` and a JSON pointer; repeat with an
+  unmodified upstream candidate → the body carries a **positive** verdict (5/5 clean, per AC-39); in
+  both runs the job's conclusion is success and no check appears on any open catalog PR.
+  *Rationale (maintainer, AM-3):* a PR opened by `GITHUB_TOKEN` does **not** trigger `pull_request`
+  workflows, so the drift PR — which changes the third-party document that *is* the merge gate (UT-6)
+  — arrives with **zero** status checks, and the one surface that could re-assert AC-39's
+  catalog-validates-cleanly property (the AC-15 check) is structurally absent on exactly that PR.
+  AM-1 moved third-party risk off the merge path onto the vendor-update path; this AC stops that path
+  from having *less* automated scrutiny than the path it replaced. The verdict is evidence for the
+  reviewer; the maintainer still decides. Stated as a separate AC rather than folded into AC-40 so
+  each remains **one** testable statement with its own verify — AC-40 tests *drift is surfaced
+  non-gatingly*, AC-41 tests *the surfaced diff is accompanied by a verdict*.
+
 ---
 
 ## 6. Edge cases
@@ -514,9 +595,15 @@ update landed), have no immutable point to resolve.
   matches, so no check runs at all; the PR shows zero status checks.
 - **EC-8.** The SchemaStore schemas are community-maintained and versionless at their URL: they may
   change under the repository, and they may lag or lead what `claude plugin validate` actually enforces.
-  A manifest can then pass CI and fail the CLI (or the reverse). Fetching them at run time also makes CI
-  depend on a third-party host's availability. This is the accepted cost of NC-10's decision (§7 D-1);
-  PI-11 proposes vendoring.
+  A manifest can then pass CI and fail the CLI (or the reverse) — that divergence remains the accepted
+  cost of NC-10's decision (§7 D-1). **What vendoring removes** (PI-11, adopted 2026-07-16 → AC-39/
+  AC-40) **is the merge-path exposure:** the third-party host is no longer reachable from any PR check,
+  so its outage cannot block a merge and its edit cannot turn CI red without a change in this
+  repository. The host is still a supply-chain input **at vendor-update time**: an upstream change —
+  benign, broken, or hostile — arrives through AC-40's drift job as a reviewable diff rather than as a
+  surprise red build (UT-6, NF-3), carrying AC-41's verdict on whether the candidate still accepts the
+  live catalog. The divergence above is what that verdict cannot settle: AC-41 measures the candidate
+  against *this catalog*, not against what the CLI enforces.
 - **EC-9.** `release.sh` requires `jq` for `--plugin` and dies without it; a CI runner or contributor
   machine lacking `jq` cannot bump. AC-18's generator and AC-36's tagging job inherit this dependency.
 - **EC-10.** A backfilled tag is placed at a commit whose manifest version differs from the tag
@@ -558,9 +645,17 @@ update landed), have no immutable point to resolve.
   `^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$`.
 - **A-6.** The scripts are Bash and run in Git Bash on Windows (the maintainer's platform) or on
   Linux/CI, per `README.md`.
-- **A-7.** There is **no root `package.json`** (verified: the only one is `site/`'s). The AC-15 `ajv`
-  check and the AC-18 generator therefore need a runtime home — a root dev-dependency, an `npx` call, or
-  placement under `site/` — which is a **HOW** decision left to the implementation plan.
+- **A-7.** There is **no root `package.json`** (verified: the only one is `site/`'s, whose tree is heavy
+  — vite, vitest, sharp, jsdom). The AC-15 check (`ajv` **plus `ajv-formats`**, per D-1) and the AC-18
+  generator therefore need a runtime home — a root dev-dependency, an `npx` call, or placement under
+  `site/` — which is a **HOW** decision left to the implementation plan.
+- **A-8.** **`CODEOWNERS` on a personal (non-organization) repository is *undocumented*, not
+  *unsupported* — an assumption, not a verified guarantee.** GitHub's docs never distinguish
+  organization from personal repositories when describing code owners, and the mechanism keys on
+  **repository write access**, which a personal repository's owner has by definition. AC-4/AC-5 are
+  written on that reading. Their verify steps (the shield-lock tooltip; the "Unknown owner" annotation
+  on the file) are both observable **without** a PR and without branch protection (NG-6), so this
+  assumption is cheap to falsify the moment the file lands.
 - **D-1.** **Resolved (NC-10): CI depends on `ajv` and the two published SchemaStore JSON Schemas, not
   on the `claude` CLI.**
   - `claude plugin validate` is real, documented, supports `--strict` (which the docs recommend for CI),
@@ -582,9 +677,37 @@ update landed), have no immutable point to resolve.
     required: `name`, `owner.name`, `plugins`) and
     [claude-code-plugin-manifest.json](https://json.schemastore.org/claude-code-plugin-manifest.json)
     (draft-07; required: `name`; documents `version`, `dependencies`, `hooks`, `commands`, `agents`,
-    `skills`).
-  - **Reliability: Medium — Anthropic-*referenced*, not Anthropic-*hosted*.** SchemaStore is
-    community-run. This is a real dependency on a third party (EC-8, PI-11).
+    `skills`). That Anthropic reference — not the host — is what makes them authoritative.
+  - **Validator constraints these schemas impose** — **verified by execution against the live upstream
+    documents on 2026-07-16** (`ajv@8.20.0`, plain `new Ajv()` + `ajv-formats`, `compile()` run against
+    both schemas and the live catalog), not relayed and not inferred. Binding on AC-15 and inherited by
+    the plan and the implementer. These are **measurements**: AC-15's "plain `new Ajv()`" and AC-39's
+    "this gate does not land red" are observed facts about this tree, not predictions (AM-3):
+    - Both declare **draft-07** (`http://json-schema.org/draft-07/schema#`) → plain `new Ajv()`, **not**
+      `ajv/dist/2019` or `ajv/dist/2020`.
+    - Both use `format: "uri"` → **`ajv-formats` is required**; without it `ajv` silently no-ops on
+      unknown formats and the keyword is not enforced.
+    - **No external `$ref`** in either schema — **0 found, by count** → `compile()` suffices;
+      `compileAsync` + `loadSchema` are not needed. Confirmed by both schemas compiling with **no
+      exception raised**. This self-containment is also what makes vendoring clean: a committed copy is
+      complete.
+    - `additionalProperties: false` appears **only** on deeply-nested sub-objects (channels,
+      `lspServers`, monitors, `userConfig`) — never at the marketplace root, never on the `plugins[]`
+      item object, never at the plugin-manifest root. Unknown top-level keys are therefore tolerated.
+    - The **live catalog validates cleanly**: **5/5 documents clean** (`marketplace.json` + all four
+      `plugin.json`) — no field either schema rejects, no required field missing.
+  - **Reliability of these constraints: High — verified by execution, not relayed.** The five bullets
+    above were originally researcher-relayed and marked "not independently re-verified". They have since
+    been **re-verified by running them** against the live upstream documents on 2026-07-16 (AM-3). The
+    residual risk is not that the measurement is wrong — it is that upstream **changes after** the
+    measurement, which is exactly what AC-40 watches and AC-41 re-measures.
+  - **Reliability of the *host*: Medium — Anthropic-*referenced*, not Anthropic-*hosted*.** SchemaStore is
+    community-run; this is a property of the source, and no amount of local verification improves it.
+    **Amended 2026-07-16 (PI-11 adopted):** the schemas are **vendored** (AC-39) and CI validates the
+    committed copies, so this third party is **out of the merge path**. It remains a supply-chain
+    dependency at **vendor-update** time, where AC-40's scheduled drift job makes an upstream change a
+    reviewable PR instead of a surprise red build, and AC-41 attaches a fresh catalog-validates-cleanly
+    verdict to that PR (EC-8, UT-6).
   - **Coverage gap, stated plainly:** `ajv` checks JSON shape only. It does **not** catch skill/agent
     frontmatter validity, `hooks.json` semantics, duplicate plugin names, or `..` path traversal.
     Duplicate names and traversal are recovered as explicit repo-local rules (AC-34, AC-33); frontmatter
@@ -599,17 +722,31 @@ update landed), have no immutable point to resolve.
 
 - **NF-1 (security).** The **validation** workflow follows `site-build.yml`'s least-privilege posture
   (`permissions: contents: read`) and never grants a fork's code secrets or write scope (AC-19, AC-20).
-- **NF-1a (security — accepted exception).** The **tagging** job (AC-36) requires `contents: write` on
-  `GITHUB_TOKEN`. This is a **deliberate, maintainer-accepted trade-off**, not an open concern: it is the
-  cost of NC-3's "automate tagging on merge" decision. It is bounded by AC-37 — job-scoped (never
-  workflow-level), `push`-to-`main` only, never reachable from a fork PR (EC-6).
+- **NF-1a (security — the complete list of accepted privilege exceptions).** **Exactly two** jobs in this
+  repository hold write scope on `GITHUB_TOKEN`. Both are **deliberate, maintainer-accepted trade-offs**,
+  not open concerns. This list is exhaustive: any *third* privileged job, or any *widening* of the scopes
+  below, is a new exception requiring its own NF entry — it is not covered here by analogy.
+
+  | Job | Scopes | Trigger | Bound |
+  | --- | --- | --- | --- |
+  | **Tagging** (AC-36) | `contents: write` | `push` to `main` only — never `pull_request`/`pull_request_target` | Job-scoped, never workflow-level (AC-37); unreachable from a fork PR (EC-6). The cost of NC-3's "automate tagging on merge" decision. |
+  | **Schema drift** (AC-40, AC-41) | `contents: write` **+ `pull-requests: write`** | `schedule` / `workflow_dispatch` only — never `pull_request`/`pull_request_target` | Job-scoped, never workflow-level (AC-40). Its triggers are not fork-reachable at all, so no fork PR can reach it. The cost of AM-1's decision to vendor the schemas: opening the drift PR needs to push a branch (`contents: write`) and create the PR (`pull-requests: write`). |
+
+  **`pull-requests: write` is a scope class no other job in this repository holds**, and it is introduced
+  solely by the drift job. Neither job may consume PR-controlled strings (UT-2). Both workflows still
+  declare a top-level `permissions:` no broader than `contents: read` (AC-37, AC-40); the elevation lives
+  on the single job that needs it. Amended by AM-3 — this NF previously named only the tagging job and
+  no NF anywhere mentioned `pull-requests: write`, which left the enumeration an auditor reads
+  incomplete even though each job's bound was already correct.
 - **NF-2 (security/trust).** This marketplace ships executable instructions and at least one hook
   (`sdd-engineering`'s telemetry `SubagentStop`/`Stop` hook). `SECURITY.md` must state this trust model
   plainly (AC-9) rather than implying the artifacts are inert documentation.
 - **NF-3 (supply chain).** Validation actions are pinned in the manner already used by the repo
   (`actions/checkout@v4`, `actions/setup-node@v4`, `actions/configure-pages@v5`, `actions/deploy-pages@v4`
-  — major-version tags). Consistency with existing practice is the bar; see PI-5. The `ajv` dependency
-  and the two remote schemas are themselves supply-chain inputs (EC-8, PI-11).
+  — major-version tags). Consistency with existing practice is the bar; see PI-5. The `ajv` /
+  `ajv-formats` dependencies are supply-chain inputs; the two schemas are too, but as **vendored,
+  reviewed, committed** artifacts (AC-39) whose updates arrive as diffs (AC-40) rather than as
+  run-time fetches (EC-8, UT-6).
 - **NF-4 (performance).** The validation check should not materially slow the PR loop; it is a
   manifest-scale JSON check over five files, and must not become a second full `site/` build.
 - **NF-5 (i18n).** All documents English (AC-12), per repo convention.
@@ -641,7 +778,13 @@ update landed), have no immutable point to resolve.
 | NC-11 resolution: `SECURITY.md` states best-effort solo-maintainer triage with **no** numeric window (AC-8a) | Maintainer decision, 2026-07-16, relayed in the final resolve brief. Rationale (maintainer's): a solo maintainer cannot guarantee a window; a broken promise is worse than no promise. |
 | NC-12 resolution: backfill `sdd-engineering--v1.1.0` at `9bae60a`; AC-22's invariant settled in the **wider** form (every version that ever shipped) | Maintainer decision, 2026-07-16, relayed in the final resolve brief; the `9bae60a` SHA and its manifest version independently re-verified against git by this agent before folding in, per the brief's instruction. |
 | **Interpretation applied (not maintainer-stated):** AC-22's "ever shipped" selects versions via `main`'s **first-parent** line, excluding reachable-but-never-current intra-PR versions (EC-13) | This agent, to make the wider invariant testable and bounded. A literal "any reachable commit" reading would demand tags for versions no user could ever install. Flagged for maintainer awareness; a one-line change if the wider literal reading is intended. |
-| NC-10 resolution: `ajv` + SchemaStore, not the `claude` CLI; CLI onboarding/TTY/exit-code risks; schema URLs and required fields; SchemaStore reliability caveat; ajv coverage gap | Researcher agent findings with cited sources, relayed in the resolve brief; sources listed inline at D-1. **Not independently re-verified by this agent** (no network access). |
+| NC-10 resolution: `ajv` + SchemaStore, not the `claude` CLI; CLI onboarding/TTY/exit-code risks; schema URLs and required fields; SchemaStore reliability caveat; ajv coverage gap | Researcher agent findings with cited sources, relayed in the resolve brief; sources listed inline at D-1. **Partly superseded by AM-3:** the *schema* half (both URLs resolve and serve draft-07 documents that compile; required fields) is now verified by execution 2026-07-16 — see the validator-constraints row below. The *`claude` CLI* half (onboarding/TTY/exit-code risks) remains **researcher-relayed and not independently re-verified** — no CLI was invoked. That half is what NG-11/PI-10 rest on. |
+| **Amendment (2026-07-16): vendor the schemas** — AC-15 rewritten to validate committed copies; **AC-39**, **AC-40** added; EC-8 / UT-6 / D-1 / NF-3 narrowed to vendor-update-time exposure; PI-11 marked adopted | Maintainer decision, 2026-07-16, relayed in the amendment brief. Explicitly approved; spec amended in place, `Status: approved` retained. |
+| Validator constraints: both schemas are **draft-07**; both use `format: "uri"` → **`ajv-formats` required**; **no external `$ref`** → `compile()` suffices; `additionalProperties: false` only on deep sub-objects (never at either root, never on `plugins[]` items); **the live catalog validates cleanly** | Originally researcher agent findings relayed in the AM-1 brief and marked *not independently re-verified*. **Upgraded by AM-3 (2026-07-16): verified by execution** against the live upstream documents — `ajv@8.20.0`, plain `new Ajv()` + `ajv-formats`, `compile()` → both schemas compile with no exception; live catalog **5/5 clean**; **0** external `$ref`s; both declare `"$schema": "http://json-schema.org/draft-07/schema#"`. Relayed as executed results in the AM-3 brief. Folded into D-1, AC-15, AC-39. |
+| **Amendment (2026-07-16): AC-4's verify method** — replaced the "owner shown on a test PR" step with the shield-lock tooltip on the web file view | Maintainer decision + GitHub-docs researcher finding ("About code owners"), relayed in the amendment brief: GitHub does not request review from a PR's own author, and @RostK is both sole code owner and PR author, so the old surface can never render here. Requirement text unchanged; AC-5 confirmed correct as written and left untouched. |
+| A-8: `CODEOWNERS` on a personal repo is **undocumented rather than unsupported** | GitHub-docs researcher, relayed in the amendment brief: the docs never distinguish org from personal repos, and the mechanism keys on write access, which the owner has by definition. Recorded as an **assumption**, not a verified guarantee. |
+| **Amendment (2026-07-16, AM-3): a `GITHUB_TOKEN`-opened PR does not trigger `pull_request` workflows**, so AC-40's drift PR arrives with zero status checks → **AC-41** added | Maintainer, relayed in the AM-3 brief; a documented GitHub Actions behaviour. This is *why* the drift path needed its own verdict requirement rather than inheriting the AC-15 check. |
+| **Amendment (2026-07-16, AM-3): the drift job needs `pull-requests: write`**, a scope class no NF or AC named anywhere; today's `pages.yml` / `site-build.yml` are both `contents: read` with no secrets → **NF-1a** widened, §11's "first `contents: write` grant" corrected | Maintainer, relayed in the AM-3 brief; workflow permission state verified there against `.github/workflows/`. The posture was already sound (AC-40 bounds the scope job-scoped); the *enumeration* was incomplete. |
 | Spec id, filename, index, status conventions | `specs/INDEX.md`; `specs/site/SPEC-01-2026-07-14-lexical-search-and-keyword-index.md`. |
 | English-only rule | Project memory (repo convention; no CI check). |
 | Remote / GitHub-native assumption | Authoring brief; consistent with `pages.yml` using GitHub Pages. |
@@ -664,20 +807,32 @@ update landed), have no immutable point to resolve.
 - **UT-4. Inbound security reports** (AC-8, via PVR) — untrusted by definition; content may be hostile.
 - **UT-5. Third-party Actions** pulled by any new workflow — executable code from outside this repo
   (NF-3, PI-5).
-- **UT-6. The SchemaStore schemas** (D-1) — fetched from a community-run host and used to gate merges.
-  A compromised or broken schema either blocks all PRs or admits invalid manifests (EC-8, PI-11).
+- **UT-6. The SchemaStore schemas** (D-1, AC-39) — authored on a community-run host that is **not** an
+  Anthropic domain. They are **no longer fetched in the merge path**: CI validates against committed
+  copies, so a compromised or broken upstream schema can neither block every PR nor silently begin
+  admitting invalid manifests. They remain untrusted input to the **vendor-update path** (AC-40): a
+  drift PR carries third-party content into the repository and must be reviewed as third-party
+  content, not merged reflexively (EC-8, NF-3). That PR gets **no `pull_request` checks** — it is opened
+  by `GITHUB_TOKEN` — so AC-41's in-body verdict is the only automated signal on it, and it is evidence
+  for the reviewer, not a gate. A *positive* verdict means only "this candidate still accepts today's
+  catalog"; it is not a judgement that the candidate is benign. A hostile schema that admits everything
+  passes AC-41 cleanly — reading the diff remains the control (UT-1's logic, applied to schemas).
 - **UT-7. `SKILL.md` / agent markdown bodies** — the site renders them (`react-markdown`) and Claude
   Code executes them. Prompt-injection carriers; out of scope to solve here, in scope to acknowledge
   in `SECURITY.md` (AC-9).
 
 ## 11. Cross-module impact
 
-- **`.github/workflows/`** — a *new* validation workflow is added, plus the AC-36 tagging job.
+- **`.github/workflows/`** — a *new* validation workflow is added, plus the AC-36 tagging job and the
+  AC-40/AC-41 **scheduled** drift job (schedule-only; it is not a PR check, so it adds no status check to
+  any PR — that is required, not incidental).
   `pages.yml` and `site-build.yml` are untouched (NG-1). Both already trigger on `plugins/**` and
   `marketplace.json`, so PRs touching the catalog will now show a third check; AC-15 requires it be
   distinguishable, consistent with `site-build.yml`'s own header comment ("Deliberately SEPARATE … so on
-  a PR you get a distinct status"). The tagging job introduces the repo's **first** `contents: write`
-  grant (NF-1a).
+  a PR you get a distinct status"). **Privilege:** today's two workflows are both `contents: read` with no
+  secrets, so this spec introduces the repository's **only two** write-scoped jobs — the tagging job
+  (`contents: write`) and the drift job (`contents: write` + `pull-requests: write`, the sole holder of
+  that scope class anywhere in the repo). Both are job-scoped and enumerated exhaustively in **NF-1a**.
 - **`scripts/`** — `release.sh` (line 58 tag construction, line 67 duplicate guard, the `--plugin` bump)
   and `_common.sh` (`validate_marketplace`, lines 63-81) are affected by AC-17/AC-21/AC-25/AC-26;
   `rollback.sh` by AC-28. Behaviour change here is **required** — line 58 emitting a Family-M tag for a
@@ -701,6 +856,13 @@ update landed), have no immutable point to resolve.
 - **`docs/`** — gains `PLUGIN-GUIDELINES.md` alongside the two pre-SDD design docs, which
   `specs/INDEX.md` explicitly excludes from the SPEC-NN convention. The new file is a *guideline*, not
   a spec, so no id is needed.
+- **Vendored schemas (new tracked artifact — AC-39)** — two committed JSON Schema copies, **byte-identical
+  to upstream**, plus their recorded provenance, which lives **outside** the copies. *Where* they live and
+  *how* provenance is recorded are **HOW** decisions for the plan (they are consumed by the AC-15 job and
+  rewritten by the AC-40 drift job; those two are their only readers/writers). They are third-party content
+  under version control: they must not be edited by hand to make a manifest pass, **nor annotated in place
+  with their own provenance** — either would fork the copy from upstream and AC-40 would report it as drift
+  forever (AC-39, AM-3).
 - **`specs/INDEX.md`** — gains the SPEC-02 row and the new `specs/repo/` module directory.
 
 ## 12. Proposed improvements
@@ -733,12 +895,20 @@ Surfaced by the completeness pass; **not** required by any AC above.
   frontmatter validity and `hooks/hooks.json` semantics. Options: a small bespoke frontmatter linter, or
   a best-effort `claude plugin validate --strict` step marked `continue-on-error` so its verdict is
   advisory and CI never depends on the CLI's TTY/auth behaviour (D-1).
-- **PI-11.** Vendor the two SchemaStore schemas into the repo and validate against the local copies,
-  with a scheduled job that diffs them upstream. Removes the run-time dependency on a third-party host,
-  makes schema changes a reviewable diff, and keeps CI deterministic (EC-8, UT-6).
+- **PI-11.** *(Adopted 2026-07-16 — now **AC-39** (vendored copies, byte-identical, provenance recorded
+  outside them), **AC-40** (scheduled upstream-drift job) and, per AM-3, **AC-41** (the drift PR carries a
+  candidate-validation verdict); AC-15 rewritten to validate the committed copies.)* Vendoring the two
+  SchemaStore schemas and diffing them upstream on a schedule was proposed here; the maintainer has
+  adopted it as a requirement, so it is **no longer a mere proposal**. Retained as a numbered entry so the
+  id remains stable. Rationale and residual exposure: EC-8, UT-6, D-1.
 - **PI-12.** Add `"$schema": "https://json.schemastore.org/claude-code-marketplace.json"` to
   `.claude-plugin/marketplace.json` (it has none today; Anthropic's own marketplace declares exactly
-  this). Free editor validation, and it documents in-file the same schema CI enforces.
+  this). Free editor validation, and it documents in-file which schema governs the file. Safe under
+  AC-15: `additionalProperties: false` does not appear at the marketplace root (D-1), so the extra key
+  cannot fail validation. **Caveat added by AM-1:** such a `$schema` points an editor at the *upstream*
+  URL while CI enforces the *vendored* copy (AC-39) — between an upstream change and AC-40's drift PR
+  landing, the two can disagree, and CI's verdict is the authoritative one. Whoever adopts PI-12 should
+  say so, or point `$schema` at the committed copy instead.
 - **PI-13.** Make AC-36's tagging job idempotent and self-healing — on each push to `main`, ensure a tag
   exists for every plugin's current version rather than only reacting to the diff. Closes EC-12's
   failed-push hole and would have prevented the §1.3 backfill entirely. **Strengthened by NC-12:** since
@@ -768,3 +938,67 @@ open question remains. The two closed in this revision:
   tags total → **AC-23**. Settles the Family-P invariant in its **wider** form: every version that ever
   shipped carries a tag, not merely every current one → **AC-22**, **G4**, **AC-11** (all seven versions
   in `RELEASES.md`, 1.1.0 marked superseded), **EC-11**, **EC-13**, **PI-13**.
+
+## 14. Amendment log
+
+All amendments below were **explicitly approved by the maintainer** and applied in place; the spec
+remains `approved` (no supersession, no re-approval required). No existing id was renumbered.
+
+- **AM-1 (2026-07-16) — vendor the schemas; the third-party host leaves the merge path.**
+  `json.schemastore.org` is community-run and not an Anthropic domain, yet AC-15 as originally
+  approved made it a hard dependency of every catalog PR's merge path: their outage blocked every
+  merge, their edit turned CI red with no change here. The spec had already recorded this as EC-8/UT-6
+  and PI-11 already proposed the fix; the maintainer has now **adopted PI-11 as a requirement**.
+  Changed: **AC-15** rewritten (validate the committed copies; draft-07 `new Ajv()`; `ajv-formats`
+  required; `compile()` sufficient); **AC-39** added (committed copies + recorded upstream
+  provenance); **AC-40** added (scheduled drift job, non-gating by construction); **EC-8**, **UT-6**,
+  **D-1**, **NF-3** re-scoped from merge-path exposure to vendor-update-time exposure; **PI-11** marked
+  adopted; **A-7** notes `ajv-formats`; §11 gains the vendored-schema artifact.
+- **AM-2 (2026-07-16) — AC-4's verify method was unobservable.** The requirement was right; the
+  verification could never be performed in this repository's configuration (GitHub does not request
+  review from a PR's own author, and @RostK is both sole code owner and author, so no "Code owners"
+  line ever renders). Changed: **AC-4's `Verify:` hint only** — now the shield-lock tooltip on the web
+  file view, expecting `Owned by @RostK (from CODEOWNERS line N)`; requirement text untouched.
+  **AC-5 deliberately left alone** — its verify already names a surface GitHub actually renders (the
+  "Unknown owner" annotation on the file), independent of branch protection (NG-6) and of any PR.
+  **A-8** added: CODEOWNERS on a personal repo is undocumented rather than unsupported — recorded
+  honestly as an assumption, not a guarantee.
+- **AM-3 (2026-07-16) — the vendor-update path gets the scrutiny AM-1 took off the merge path; the
+  privilege enumeration catches up with it; provenance is pinned outside the copies.** Four changes,
+  all maintainer-decided:
+  - **(3a) AC-41 added — drift PRs carry a validation verdict.** A PR opened by `GITHUB_TOKEN` does not
+    trigger `pull_request` workflows, so AC-40's drift PR — the single highest-risk PR in this
+    repository, since it edits the third-party document that *is* the merge gate (UT-6) — arrives with
+    **zero** status checks, and the one surface that could re-assert AC-39's catalog-validates-cleanly
+    property is structurally absent on exactly that PR. AM-1 moved third-party risk off the merge path
+    onto the vendor-update path; that path had *less* automated scrutiny than the one it replaced.
+    AC-41 requires the job to run AC-15's validation against the **candidate** schema before opening the
+    PR and to state the verdict in the body. Stated as a **new adjacent AC rather than folded into
+    AC-40** so each stays one testable statement with its own verify (AC-40: drift is surfaced
+    non-gatingly; AC-41: the diff arrives with a verdict) — and so the plan's existing AC-40 trace stays
+    valid. Non-gating is preserved explicitly: a negative verdict informs, never blocks.
+  - **(3b) NF-1a widened** from "the tagging job is the accepted exception" to an **exhaustive
+    two-row enumeration** of every write-scoped job: tagging (`contents: write`) and drift
+    (`contents: write` + **`pull-requests: write`** — a scope class no NF or AC previously named
+    anywhere), each with its trigger and its bound. Chosen over adding NF-1b so an auditor reads **one**
+    list. The security *posture* was already sound — AC-40 bounds the scope job-scoped — but NF-1a is
+    where someone auditing privilege looks, and it was incomplete. §11's "the repo's **first**
+    `contents: write` grant" corrected: there are two write-scoped jobs, and today's two workflows are
+    both `contents: read`.
+  - **(3c) AC-39 pins provenance outside the copies**, which stay **byte-identical to upstream**. The
+    natural reading of "recorded provenance" — an `x-vendored-from` key or a header comment *inside* the
+    schema — breaks AC-40 by construction: the copy stops matching upstream, drift is reported forever,
+    and the vendored artifact defeats itself. The spec constrains only that invariant; the file name and
+    format stay a HOW decision for the plan.
+  - **(3d) D-1's validator constraints upgraded from relayed to measured.** They were marked
+    researcher-relayed and "not independently re-verified"; they are now **verified by execution**
+    against the live upstream documents (2026-07-16): `ajv@8.20.0`, plain `new Ajv()` + `ajv-formats`,
+    `compile()` → both schemas compile with no exception, live catalog **5/5 clean**, **0** external
+    `$ref`s, both draft-07. This matters because AC-15's "plain `new Ajv()`" and AC-39's "this gate does
+    not land red" are now measurements rather than claims. D-1's reliability note is split accordingly:
+    the *constraints* are High (executed), the *host* stays Medium (community-run — a property of the
+    source that local verification cannot improve).
+
+  Changed by AM-3: **AC-39** (byte-identity + provenance-outside), **AC-41** (new), **NF-1a** (widened),
+  **D-1** (reliability split + measured constraints), **EC-8**, **UT-6**, **PI-11**, **§11**, **§9**
+  (three provenance rows). AC-1…AC-40 keep their ids and `Verify:` hints; nothing renumbered.
