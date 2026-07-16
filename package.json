@@ -1,0 +1,20 @@
+{
+  "name": "my-monkeys",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Repo-root tooling: marketplace/plugin manifest validation against vendored Claude Code JSON Schemas, marketplace version generation, and vendored-schema drift checking.",
+  "scripts": {
+    "validate:manifests": "node scripts/validate-manifests.mjs",
+    "gen:marketplace": "node scripts/gen-marketplace-versions.mjs",
+    "check:marketplace": "node scripts/gen-marketplace-versions.mjs --check",
+    "schemas:check": "node scripts/vendor-schemas.mjs --check",
+    "schemas:update": "node scripts/vendor-schemas.mjs --write",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "claude-code-marketplace.json": {
+    "url": "https://json.schemastore.org/claude-code-marketplace.json",
+    "vendoredAt": "2026-07-16T11:45:51.044Z",
+    "sha256": "42c3f80413638e93a420256d942f409104b651379b9ac2451cc636f581de2ffc"
+  },
+  "claude-code-plugin-manifest.json": {
+    "url": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+    "vendoredAt": "2026-07-16T11:45:51.338Z",
+    "sha256": "3f69938d71a47a72fa60050b2050dd620054708911defc1c1dcd7188dcb169f5"
+  }
+}
