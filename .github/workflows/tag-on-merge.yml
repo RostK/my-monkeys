@@ -1,0 +1,260 @@
+name: Tag on merge
+
+# Automates the Family-P release tag (AC-17: `<plugin>--vX.Y.Z`) at the merge
+# commit whenever a plugin's version changes on `main` (AC-36). This is the
+# ONLY workflow in the repo carrying an elevated write grant scoped to a
+# single job (AC-37) — deliberately kept in its OWN file, separate from
+# .github/workflows/marketplace-validate.yml, so that grant lives in a file a
+# fork PR's `pull_request` event never instantiates (this workflow never
+# declares a `pull_request` trigger — `push` to `main` only, NEVER
+# `pull_request_target`).
+#
+# Path-filter cross-reference: `plugins/**` also appears in
+# .github/workflows/pages.yml, .github/workflows/site-build.yml, and
+# .github/workflows/marketplace-validate.yml — Actions YAML has no
+# include/DRY mechanism, keep all four lists in sync by hand. This workflow
+# narrows to the one sub-glob AC-36 actually cares about
+# (`plugins/*/.claude-plugin/plugin.json`), since only a version bump in a
+# plugin manifest can ever produce a new Family-P tag.
+#
+# Actions are SHA-pinned in this file only (supply chain, PLAN-02 SPEC-02
+# R-6) because of the write grant — elsewhere in the repo the convention is
+# an unpinned major tag (`@v4`), left as-is.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "plugins/*/.claude-plugin/plugin.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # --- AC-36 / AC-24 / AC-37: create the Family-P tag for any plugin whose
+  # version changed in this push, at the merge commit. IDEMPOTENT by
+  # construction: create-if-absent, no-op-if-exists, never fail-on-exists.
+  # This is load-bearing — scripts/release.sh (AC-25) still creates and
+  # pushes the same tag locally, so a maintainer releasing via the script and
+  # then pushing to `main` makes this job observe a version change whose tag
+  # ALREADY exists. A non-idempotent job would turn that documented release
+  # path permanently red. Proof (local, scratch git repo, never the real ref
+  # store — worktrees share .git): run the tag logic twice against the same
+  # commit; the second run exits 0 having done nothing. See PR/task notes.
+  tag:
+    name: tag
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Only need the pushed commit and its immediate parent to see
+          # which plugin.json version fields actually changed.
+          fetch-depth: 2
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+
+      - name: Create Family-P tag for any plugin version change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node --input-type=module <<'NODE_EOF'
+          import { execFileSync } from "node:child_process";
+          import { existsSync, readdirSync, readFileSync } from "node:fs";
+          import path from "node:path";
+
+          function git(args) {
+            return execFileSync("git", args, { encoding: "utf8" }).trim();
+          }
+          function gitOk(args) {
+            try {
+              git(args);
+              return true;
+            } catch {
+              return false;
+            }
+          }
+
+          if (!gitOk(["rev-parse", "-q", "--verify", "HEAD~1"])) {
+            console.log("No parent commit available to diff against — nothing to tag.");
+            process.exit(0);
+          }
+
+          const pluginsDir = "plugins";
+          const dirNames = existsSync(pluginsDir) ? readdirSync(pluginsDir) : [];
+          let created = 0;
+
+          for (const dirName of dirNames) {
+            const manifestPath = path.posix.join("plugins", dirName, ".claude-plugin", "plugin.json");
+            if (!existsSync(manifestPath)) continue;
+
+            let manifest;
+            try {
+              manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+            } catch {
+              console.log(`::warning file=${manifestPath}::not valid JSON — skipped`);
+              continue;
+            }
+            const { name, version } = manifest;
+            if (!name || !version) {
+              console.log(`::warning file=${manifestPath}::missing name/version — skipped`);
+              continue;
+            }
+
+            let oldVersion = null;
+            try {
+              const raw = git(["show", `HEAD~1:${manifestPath}`]);
+              oldVersion = JSON.parse(raw).version ?? null;
+            } catch {
+              oldVersion = null; // did not exist at HEAD~1 — treat as a new release
+            }
+
+            if (oldVersion === version) continue;
+
+            const tag = `${name}--v${version}`;
+
+            // Idempotent: create-if-absent, no-op-if-exists, never fail-on-exists.
+            if (gitOk(["rev-parse", "-q", "--verify", `refs/tags/${tag}`])) {
+              console.log(`Tag ${tag} already exists — no-op (idempotent).`);
+              continue;
+            }
+
+            const sha = git(["rev-parse", "HEAD"]);
+            console.log(`Tagging ${sha} as ${tag}`);
+            git(["tag", "-a", tag, "-m", `Release ${name} ${version}`]);
+            git(["push", "origin", `refs/tags/${tag}`]);
+            created++;
+          }
+
+          console.log(`Created ${created} tag(s).`);
+          NODE_EOF
+
+  # --- R-3 (SPEC-02 PI-14): assert the AC-22 Family-P invariant in CI — walk
+  # each catalog plugin's first-parent history on `main` and fail if any
+  # version that was ever released lacks its tag. Runs AFTER `tag` so a
+  # version this same push just tagged is already visible.
+  #
+  # 🔴 The tag target is NOT necessarily the first-parent commit enumerated
+  # below. AC-23's three backfilled tags sit at the AUTHORING commit, while
+  # `git log --first-parent` (used here to decide WHICH versions shipped)
+  # yields the MERGE commit for those same releases. Both are reachable from
+  # `main` and satisfy AC-22, which requires only reachability — so this job
+  # asserts "a tag exists for the version, and the tag's OWN commit declares
+  # that version", never "tag.commit == first-parent-commit". The latter is
+  # the naive check that fails on all three backfilled tags; do not
+  # reintroduce it.
+  #
+  # ⚠️ Only 4 of 7 released versions are tagged until the maintainer runs
+  # `scripts/backfill-tags.sh --apply` and pushes (PLAN-02 T3 / M1). This job
+  # is deliberately STRICT (not tolerant of that pre-backfill gap) — a
+  # tolerant version would defeat the entire point of asserting the
+  # invariant. It is EXPECTED to fail on `main` until the backfill lands;
+  # once `git tag -l` grows from 4 to 7 it goes green and stays green (NG-4
+  # forbids moving a tag once created).
+  verify-release-tags:
+    name: verify-release-tags
+    runs-on: ubuntu-latest
+    needs: tag
+    if: always() && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout (full history + tags — the first-parent walk needs the whole line)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+
+      - name: Assert every released version has its Family-P tag (AC-22)
+        run: |
+          node --input-type=module <<'NODE_EOF'
+          import { execFileSync } from "node:child_process";
+          import { readFileSync } from "node:fs";
+
+          function git(args) {
+            return execFileSync("git", args, { encoding: "utf8" }).trim();
+          }
+          function gitOk(args) {
+            try {
+              git(args);
+              return true;
+            } catch {
+              return false;
+            }
+          }
+
+          const marketplace = JSON.parse(readFileSync(".claude-plugin/marketplace.json", "utf8"));
+          let failed = false;
+
+          for (const entry of marketplace.plugins ?? []) {
+            const name = entry.name;
+            const source = String(entry.source ?? "").replace(/^\.\//, "");
+            if (!name || !source) continue;
+            const manifestPath = `${source}/.claude-plugin/plugin.json`;
+
+            // First-parent walk: decides WHICH versions shipped only. Never
+            // used as a tag target (see the job-level comment above).
+            let commits = [];
+            try {
+              commits = git(["log", "--first-parent", "--format=%H", "HEAD", "--", manifestPath])
+                .split("\n")
+                .filter(Boolean);
+            } catch {
+              commits = [];
+            }
+
+            const versions = new Set();
+            for (const commit of commits) {
+              try {
+                const raw = git(["show", `${commit}:${manifestPath}`]);
+                const v = JSON.parse(raw).version;
+                if (v) versions.add(v);
+              } catch {
+                // manifest missing/invalid JSON at this historical commit — skip
+              }
+            }
+
+            for (const v of versions) {
+              const tag = `${name}--v${v}`;
+              if (!gitOk(["rev-parse", "-q", "--verify", `refs/tags/${tag}^{commit}`])) {
+                console.log(`::error::AC-22 violation: ${name} released version ${v} but tag ${tag} does not exist.`);
+                failed = true;
+                continue;
+              }
+              let tagVersion = null;
+              try {
+                const raw = git(["show", `${tag}:${manifestPath}`]);
+                tagVersion = JSON.parse(raw).version;
+              } catch {
+                tagVersion = null;
+              }
+              if (tagVersion !== v) {
+                console.log(
+                  `::error::AC-22 violation: tag ${tag}'s own commit declares version '${tagVersion}', expected '${v}'.`,
+                );
+                failed = true;
+              }
+            }
+          }
+
+          if (failed) {
+            console.log(
+              "::error::AC-22 (Family-P invariant) failed for one or more released versions above. EXPECTED until the maintainer runs `scripts/backfill-tags.sh --apply` and pushes the 3 backfilled tags (SPEC-02 AC-23, PLAN-02 T3/M1) — once `git tag -l` grows from 4 to 7, this job goes green.",
+            );
+            process.exit(1);
+          }
+          console.log("AC-22 holds: every released version across the catalog has its Family-P tag.");
+          NODE_EOF
