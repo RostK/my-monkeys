@@ -1,9 +1,9 @@
 {
-  "name": "my-monkeys-marketplace-preview",
+  "name": "my-monkeys-marketplace-site",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Design preview of the my-monkeys marketplace UI (React + Vite).",
+  "description": "The my-monkeys marketplace UI (React + Vite).",
   "scripts": {
     "index": "node scripts/build-index.mjs",
     "predev": "npm run index",

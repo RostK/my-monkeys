@@ -5,18 +5,18 @@ import { fileURLToPath } from "node:url";
 import { mapModelResponseToKeywords, generateKeywordsForArtifact } from "./gen-keywords.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-// preview/scripts/gen-keywords.test.mjs -> preview/ -> repo root
-const PREVIEW_ROOT = resolve(HERE, "..");
-const REPO_ROOT = resolve(PREVIEW_ROOT, "..");
+// site/scripts/gen-keywords.test.mjs -> site/ -> repo root
+const SITE_ROOT = resolve(HERE, "..");
+const REPO_ROOT = resolve(SITE_ROOT, "..");
 
 /**
  * These four assertions are the AC-27 enforcement: "the build-time LLM call
- * is not possible today" (preview/LEARNINGS.md) must stay true forever.
+ * is not possible today" (site/LEARNINGS.md) must stay true forever.
  * Negative requirements rot silently — this is what keeps it real.
  */
 describe("AC-27 guard: gen-keywords.mjs stays invisible to the build and to CI", () => {
-  it("preview/package.json contains no script whose value references gen-keywords", () => {
-    const pkg = JSON.parse(readFileSync(join(PREVIEW_ROOT, "package.json"), "utf8"));
+  it("site/package.json contains no script whose value references gen-keywords", () => {
+    const pkg = JSON.parse(readFileSync(join(SITE_ROOT, "package.json"), "utf8"));
     const scripts = pkg.scripts || {};
     expect(Object.keys(scripts).length).toBeGreaterThan(0);
     for (const [name, value] of Object.entries(scripts)) {
@@ -42,7 +42,7 @@ describe("AC-27 guard: gen-keywords.mjs stays invisible to the build and to CI",
   });
 
   it("build-index.mjs's source has no fetch/http/https import and does not import gen-keywords.mjs", () => {
-    const source = readFileSync(join(PREVIEW_ROOT, "scripts", "build-index.mjs"), "utf8");
+    const source = readFileSync(join(SITE_ROOT, "scripts", "build-index.mjs"), "utf8");
     expect(source).not.toMatch(/\bfetch\s*\(/);
     expect(source).not.toMatch(/from\s+["']node:https?["']/);
     expect(source).not.toMatch(/require\(\s*["']https?["']\s*\)/);
