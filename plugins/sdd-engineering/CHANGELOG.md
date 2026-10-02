@@ -4,6 +4,54 @@ All notable changes to **sdd-engineering** are documented here. The format follo
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this plugin adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-02
+
+All changes are to `skills/run-plan/SKILL.md`, and each closes a recommendation that recurred across
+two retros of `run-plan` on one plan (95.3M tokens, then 494.8M with the orchestrator at 60% of it).
+
+### Added
+- **Test-quality gate in Phase 2.** A fourth parallel, read-only gate looks for assertions that
+  cannot fail, new branches with no test, and real-time sleeps, and its findings are blocking. In
+  both runs these surfaced only in Phase 4's `pr-self-review` and became a fix round of their own
+  each time (about 16M tokens in one); now they join round 1.
+- **Drift sweep at intake** (Phase 0 step 3). For each file and DOM hook a unit edits or moves, the
+  orchestrator checks what landed on it since the plan was written and which tests name it. A PR
+  merged after the plan had moved a `data-*` hook a test depended on, and blocked a unit mid-build.
+- **Context pack at intake** (Phase 0 step 4). One short brief per task unit — its plan excerpt,
+  only the learnings records that bear on its files, its known collisions — and workers are pointed
+  at that, not at the whole plan, spec and learnings file. Both retros recommended a pack and
+  neither run wrote one, so it is now a numbered step.
+- **Human sensory gate** (Phase 3 triage). A finding about what a human perceives — screen-reader
+  speech, visual judgement — gets a five-minute human check, after every machine-checkable part is
+  cleared in the browser and before any fix is dispatched. A reviewer-prescribed fix for a 55 ms
+  screen-reader announcement was built, tested and pushed, then removed once a human listened.
+- **Shared-branch guardrail.** Once a background task or session has been spawned, the orchestrator
+  checks `git log` against its own last commit before each commit and before reporting branch
+  state, and names the branch a spawned task may write to.
+- **Cost notes:** fixes are dispatched because every main-thread turn re-reads the whole
+  conversation at the orchestrator's tier; and on a long run a phase boundary is a session boundary
+  — offer a hand-off to a fresh session (or compact) after Phase 1 integration, after the fix loop,
+  and at any human gate, with the plan file as the carried state.
+
+### Changed
+- **No carve-out from "you never write code".** Phase 3 step 4 now names the cases that were
+  rationalised away — a "small" fix, a defect the orchestrator's own Phase 3.5 pass found, a
+  `pr-self-review` finding in Phase 4, a review answer after a push — and sends all of them back
+  through an `implementer` dispatch. Hard boundary 1 itself is unchanged.
+- **Cheaper model tier for every inherited-model reviewer.** The sanctioned downgrade covered only
+  `architecture-reviewer` and `plan-verifier`; it now covers any read-only review agent launched as
+  `general-purpose` (line-level finders, the test-quality gate, `pr-self-review`'s bucket
+  reviewers), which otherwise inherits the orchestrator's model. Same escape hatch: move back up if
+  findings turn out false.
+- **Worktree base is stated, not implied.** Agent worktrees are cut from the default branch, so
+  step 0 of every implementer brief fast-forwards to the working branch at a named commit and checks
+  it before any work; integration falls back to `git diff --cached --binary` → `git apply --index`
+  when the project has no worktree-integration workflow of its own.
+- **Phase 4's `pr-self-review` stays on the whole diff, and now says why**: its recorded verdict
+  vouches for the entire pushed diff. Narrowing it to the delta since Phase 2 was considered and
+  rejected for that reason.
+- `README.md` — the loop diagram and the `run-plan` summary list the fourth review gate.
+
 ## [1.1.1] - 2026-07-14
 
 ### Fixed
