@@ -28,6 +28,27 @@
  * transcript from its first entry. Such rows carry `coldStart: true`; on a `Stop`
  * row that means it covers the whole session so far and does not belong in a sum.
  *
+ * ONE MODEL CALL, SEVERAL ENTRIES
+ * The transcript writes one entry per content block of an answer (each text
+ * block, each tool call), and every such entry repeats the answer's message id
+ * and its WHOLE usage. Summing entry by entry bills one call two or three times
+ * over — before 1.2.0 every token key was 1.9–3.0x the real spend. So usage is
+ * counted once per message id (the largest copy of each field, as a copy can be
+ * written before the answer finished), and tool calls once per tool_use id
+ * within that message. An entry with no message id can only count as itself.
+ *
+ * KEYS OF ONE ROW
+ *   ts · event · session · agent · agentId · model · status · stopReason ·
+ *   coldStart · tokens · inputTokens · outputTokens · cacheReadTokens ·
+ *   cacheCreationTokens · toolUses · durationMs · modelCalls · peakContextTokens
+ *
+ * `modelCalls` is the number of distinct model calls (message ids) the row
+ * covers. `peakContextTokens` is the largest, over those calls, of input +
+ * cache-read + cache-creation tokens: the context that call read. Both are
+ * `null` when the row covers no such call (above all, an unreadable transcript):
+ * unknown, not zero. Their presence also marks a row written by 1.2.0 or later,
+ * whose token sums are per call; a row without them is the inflated kind.
+ *
  * NOT EVERY SubagentStop IS AN AGENT
  * The harness also fires `SubagentStop` for its own internal agents. One fires
  * whenever a new user prompt is processed — so it lands ~2s after the preceding
@@ -36,15 +57,19 @@
  * row for it: `retro` counts `SubagentStop` rows as agents launched, and a
  * phantom row is an agent that never existed.
  *
- * Ledger path (first match wins):
- *   1. $SDD_TELEMETRY_LEDGER
- *   2. $CLAUDE_PROJECT_DIR/retros/ledger.jsonl
- *   3. ./retros/ledger.jsonl
+ * Ledger path — OPT-IN (first match wins):
+ *   1. $SDD_TELEMETRY_LEDGER, wherever it points
+ *   2. <project>/retros/ledger.jsonl, but only if <project>/retros/ already
+ *      exists — <project> is $CLAUDE_PROJECT_DIR, else the working directory
+ *   3. otherwise nothing is written
+ * The plugin can be installed at user scope, where this hook fires in every
+ * project; writing `retros/` into each of them uninvited is not ours to do.
+ * Creating the folder (or setting the variable) is the opt-in.
  *
  * This script is intentionally dependency-free and never throws into the
  * session: any failure is swallowed and it always exits 0.
  */
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -86,8 +111,16 @@ function readTranscript(path) {
   return entries;
 }
 
+const USAGE_FIELDS = [
+  'input_tokens',
+  'output_tokens',
+  'cache_read_input_tokens',
+  'cache_creation_input_tokens',
+];
+
 /**
- * Roll up the usage of every assistant entry into one record.
+ * Roll up the usage of every assistant entry into one record, counting each
+ * model call once (see ONE MODEL CALL, SEVERAL ENTRIES above).
  * `entries` is already narrowed to the slice this event is responsible for.
  */
 function aggregate(entries) {
@@ -97,6 +130,8 @@ function aggregate(entries) {
     cacheReadTokens: 0,
     cacheCreationTokens: 0,
     toolUses: 0,
+    modelCalls: null,
+    peakContextTokens: null,
     model: null,
     stopReason: null,
     apiError: false,
@@ -104,6 +139,9 @@ function aggregate(entries) {
 
   let firstTs = null;
   let lastTs = null;
+  // One usage per model call: keyed by message id, or by entry when it has none.
+  const calls = new Map();
+  const toolUseKeys = new Set();
 
   for (const e of entries) {
     const ts = Date.parse(e.timestamp ?? '');
@@ -119,23 +157,45 @@ function aggregate(entries) {
 
     const u = msg.usage;
     if (u) {
-      acc.inputTokens += u.input_tokens ?? 0;
-      acc.outputTokens += u.output_tokens ?? 0;
-      acc.cacheReadTokens += u.cache_read_input_tokens ?? 0;
-      acc.cacheCreationTokens += u.cache_creation_input_tokens ?? 0;
+      const key = msg.id ?? Symbol('call');
+      const seen = calls.get(key) ?? {};
+      for (const f of USAGE_FIELDS) seen[f] = Math.max(seen[f] ?? 0, u[f] ?? 0);
+      calls.set(key, seen);
     }
     if (msg.model) acc.model = msg.model;
     if (msg.stop_reason) acc.stopReason = msg.stop_reason;
 
     if (Array.isArray(msg.content)) {
       for (const block of msg.content) {
-        if (block && block.type === 'tool_use') acc.toolUses += 1;
+        if (!block || block.type !== 'tool_use') continue;
+        // A block re-written under the same message is still one tool call.
+        if (msg.id && block.id) toolUseKeys.add(`${msg.id}:${block.id}`);
+        else toolUseKeys.add(Symbol('tool_use'));
       }
     }
   }
 
+  for (const u of calls.values()) {
+    acc.inputTokens += u.input_tokens;
+    acc.outputTokens += u.output_tokens;
+    acc.cacheReadTokens += u.cache_read_input_tokens;
+    acc.cacheCreationTokens += u.cache_creation_input_tokens;
+    const context = u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens;
+    if (acc.peakContextTokens === null || context > acc.peakContextTokens) {
+      acc.peakContextTokens = context;
+    }
+  }
+  acc.modelCalls = calls.size > 0 ? calls.size : null;
+  acc.toolUses = toolUseKeys.size;
   acc.durationMs = firstTs !== null && lastTs !== null ? lastTs - firstTs : null;
   return acc;
+}
+
+/** Where this row goes, or null when the project has not opted in (see header). */
+function ledgerPath() {
+  if (process.env.SDD_TELEMETRY_LEDGER) return process.env.SDD_TELEMETRY_LEDGER;
+  const retros = join(process.env.CLAUDE_PROJECT_DIR || process.cwd(), 'retros');
+  return existsSync(retros) ? join(retros, 'ledger.jsonl') : null;
 }
 
 /**
@@ -220,9 +280,8 @@ function main() {
     evt = { _unparsed: raw.slice(0, 2000) };
   }
 
-  const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-  const ledger =
-    process.env.SDD_TELEMETRY_LEDGER || join(projectDir, 'retros', 'ledger.jsonl');
+  const ledger = ledgerPath();
+  if (!ledger) return;
   const stateDir = join(dirname(ledger), '.ledger-state');
 
   const event = pick(evt.hook_event_name, evt.event) ?? 'unknown';
@@ -308,6 +367,9 @@ function main() {
     cacheCreationTokens: usage.cacheCreationTokens,
     toolUses: usage.toolUses,
     durationMs: usage.durationMs,
+    // Distinct model calls in this row, and the largest context one of them read.
+    modelCalls: usage.modelCalls,
+    peakContextTokens: usage.peakContextTokens,
   };
 
   try {

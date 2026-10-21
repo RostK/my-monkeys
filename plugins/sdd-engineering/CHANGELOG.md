@@ -6,8 +6,13 @@ All notable changes to **sdd-engineering** are documented here. The format follo
 
 ## [1.2.0] - 2026-10-21
 
-All changes are to `skills/run-plan/SKILL.md`, and each closes a recommendation that recurred across
-two retros of `run-plan` on one plan (95.3M tokens, then 494.8M with the orchestrator at 60% of it).
+One consolidated release of three lines of work: `run-plan` hardened against the recommendations that
+recurred across two retros of one plan (95.3M tokens, then 494.8M with the orchestrator at 60% of it);
+a grounding pack carried across `spec-creator` passes; and the general edits a downstream project
+made to its own copies of these skills and agents, plus a fix to the telemetry it relies on.
+
+Token figures quoted below were read from ledgers written before this release's telemetry fix, and
+are about 2–3× the real spend; the ratios between them hold.
 
 ### Added
 - **Test-quality gate in Phase 2.** A fourth parallel, read-only gate looks for assertions that
@@ -45,6 +50,22 @@ two retros of `run-plan` on one plan (95.3M tokens, then 494.8M with the orchest
   the delta — a brief's enumeration is a hypothesis to falsify, not an input to copy. SPEC-02's brief
   named two untagged plugin versions; the truth was three, and the third surfaced only in the final
   pass, by exactly this method. The agent's `Brief deltas` line reports what the brief got wrong.
+- **Context budget for `implementer`.** An implementer that passes about 400k tokens of context stops
+  and returns `blocked` with what is done and what is left, instead of pressing on: every call
+  re-reads the whole context, so a unit twice as long costs about four times as much. One builder
+  that did not stop ran to 947k tokens over 159 calls and cost six times its predecessor.
+- **Unit sizing in `implementation-planner`.** Each task unit is sized for one implementer under
+  about 400k tokens; a unit that names two rules (or two layers) and their tests is two units, run in
+  sequence when their files overlap.
+- **Mechanical loops go to a fresh agent** (`run-plan` cost notes). A loop of many mechanical calls
+  that follows a written recipe runs in a fresh agent holding only the recipe, never in the main
+  conversation.
+- **Two ledger keys, `modelCalls` and `peakContextTokens`** — the distinct model calls a row covers
+  and the largest context one of them read; `null` means unknown, not zero. `retro` now reports
+  peak context per agent and flags any agent past about 400k.
+- **Tests for `capture-telemetry.mjs`** — `scripts/capture-telemetry.test.mjs`, run with
+  `npm run test:telemetry` from the repo root. They drive the script as the hook does: a child
+  process, the hook's JSON on stdin, a transcript on disk.
 
 ### Changed
 - **No carve-out from "you never write code".** Phase 3 step 4 now names the cases that were
@@ -73,6 +94,28 @@ two retros of `run-plan` on one plan (95.3M tokens, then 494.8M with the orchest
   non-blocking and asks the user their `NC-n` questions while it runs, so research costs zero
   wall-clock instead of blocking the loop — proven on two runs (SPEC-02: 4.3 min fully hidden under
   an AskUserQuestion round). Applies equally to a `needs external research` NC surfaced by the draft.
+- **`implementer` no longer preloads all eleven `engineering-paved-path` skills.** It loads with the
+  Skill tool exactly the skills its unit names, or its track's default set when the unit names none
+  — a UI-only unit no longer carries the Fastify, Drizzle and Postgres skills, re-read on every call.
+  `implementation-planner` now names per unit only the skills that unit needs. A learnings excerpt
+  in the unit's brief now stands in for reading the project's whole insights file.
+- **Small fix passes are dispatched too.** A downstream project's copy had made "a small fix pass in
+  the main thread" an exception to "you never write code"; this release keeps the rule without
+  exceptions, and names the cheap route for a small pass instead — resume the unit's own
+  `implementer` while it is still live, which pays no re-grounding.
+- **Telemetry is opt-in.** The hook writes to `SDD_TELEMETRY_LEDGER` if set, else to
+  `retros/ledger.jsonl` only when the project already has a `retros/` folder, else nowhere. Before,
+  a user-scope install created `retros/` in every project it ran in. Projects with a `retros/` folder
+  see no change.
+
+### Fixed
+- **Every token figure in the ledger was 1.9–3.0× too high.** The transcript writes one entry per
+  content block of an answer, each repeating the answer's message id and whole usage, and
+  `capture-telemetry.mjs` summed entry by entry. Usage is now counted once per message id (the
+  largest copy of each field) and tool calls once per tool-use id. Measured on one downstream
+  session: main thread 694.3M by entry, 321.7M by message id; its subagents 1,037.1M and 442.4M.
+  Rows written before this release carry no `modelCalls` key, which is how `retro` tells them apart;
+  never add them to newer rows.
 
 ## [1.1.1] - 2026-07-14
 

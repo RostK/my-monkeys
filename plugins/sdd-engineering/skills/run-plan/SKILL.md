@@ -28,6 +28,9 @@ INTAKE (read PLAN-*.md, drift sweep, unit briefs) ─► BUILD (implementer ∥,
 ```
 
 ## Cost & toggle notes (token economy — read this)
+*(Token figures in the motivating cases below were read from ledgers written before 1.2.0, which
+counted each model call once per content block of its answer: read them as roughly 2–3× the real
+spend. The ratios between them hold.)*
 - **Test bar.** By default there is **no separate red-tests phase**: implementers make **existing
   and their own** tests green — that is the only test bar. **Consequence:** an `AC` whose `Verify:`
   hint names a test nobody wrote comes back `UNVERIFIABLE (static)` / `NOT FOUND` from
@@ -53,7 +56,16 @@ INTAKE (read PLAN-*.md, drift sweep, unit briefs) ─► BUILD (implementer ∥,
   expensive one; an `implementer` opens only the finding's files. (Motivating case: a run whose
   four fix rounds were all carried out on the main thread ended with the orchestrator at 60% of the
   run's tokens — 296M, about 9.9M per main-thread turn — against 34% on the previous run of the
-  same plan.)
+  same plan.) A **small** fix pass is no exception: its cheap route is to **resume** the
+  `implementer` that built the unit (if it is still live and its context is well under the
+  ~400k budget), which already holds the files and pays no re-grounding; otherwise a fresh one
+  with the unit's brief.
+- **Mechanical loops go to a fresh agent.** A loop of many mechanical calls that follows a written
+  recipe (re-running a script over a list, re-banking records, a checklist of renames) goes to a
+  fresh agent holding **only the recipe**, never to the main conversation: every call there
+  re-reads the whole conversation, and an agent's cost goes with its context times its calls.
+  (Motivating case: one main-conversation turn that ran such a recipe made 411 tool calls over
+  three days of history and cost more than five code reviews together.)
 - **Phase boundaries are session boundaries on a long run.** For the same reason — a main-thread
   turn re-reads every turn before it — after Phase 1 integration, after the fix loop, and at any
   human gate, offer the user a hand-off to a **fresh session** (or compact) rather than carrying
@@ -197,7 +209,9 @@ Collect the four reports by reference.
    a small new task unit (missing behavior), not just an edit. **Integrate** as in Phase 1.
    There is **no carve-out** for a fix that looks quicker to make here, or for a defect you found
    yourself: a Phase 3.5 runtime finding, a `pr-self-review` finding in Phase 4, and a review
-   answer after a push all come back through this step. The inline edit is the costly one (Cost
+   answer after a push all come back through this step. For a small pass (tests only, a handful
+   of files), resume the unit's own `implementer` when it is still live rather than paying a
+   fresh one's grounding (Cost notes) — that, not an inline edit, is the cheap route. The inline edit is the costly one (Cost
    notes), and the first one sets the habit. (Motivating case: an orchestrator fixed two defects
    its own Phase 3.5 browser pass had found — "quicker to fix here" — and from then on carried out
    every round on the main thread, `pr-self-review` fixes included.)

@@ -9,7 +9,7 @@
     {
       "name": "engineering-paved-path",
       "source": "./plugins/engineering-paved-path",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "Reusable engineering skills: React, Next.js, Fastify, architecture, testing, security, TypeScript, Zod, Drizzle, PostgreSQL, insights."
     },
     {

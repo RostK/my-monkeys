@@ -39,7 +39,7 @@ engineering-paved-path:react-best-practices
 engineering-paved-path:onion-architecture
 ```
 
-Other plugins reference them the same way — e.g. `sdd-engineering`'s `implementer` preloads
+Other plugins reference them the same way — e.g. `sdd-engineering`'s `implementer` loads
 `engineering-paved-path:typescript-expert`, and `architecture-review`'s reviewer preloads
 `engineering-paved-path:onion-architecture`.
 

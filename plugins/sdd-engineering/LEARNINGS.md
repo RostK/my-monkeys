@@ -55,6 +55,14 @@ new dated note beneath it, never rewrite. See `engineering-paved-path:engineerin
   becomes a numbered step with a concrete artefact (a brief file, a path handed to the worker), or it will
   recur again. Evidence: `skills/run-plan/SKILL.md` (Phase 0 steps 3–4).
 
+- 2026-10-21 — **Summing transcript usage entry by entry bills one model call two or three times.** The
+  transcript writes one entry per content block of an answer (each text block, each tool call), every one
+  repeating the answer's `message.id` and its WHOLE `usage`; occasionally one copy under the id is all
+  zeros. Count usage once per message id (largest copy of each field) and tool calls once per
+  `message.id:tool_use.id`. Measured: 1,970 of 2,317 ids in one long session had several entries; summed
+  by entry a main thread read 694.3M, by id 321.7M. Every ledger row before 1.2.0 carries this error and
+  is recognisable by having no `modelCalls` key. Evidence: `scripts/capture-telemetry.mjs` (`aggregate`).
+
 ## Codebase Patterns
 
 - 2026-07-14 — A plugin edit in this repo is **not** what actually runs. The live hook is the installed copy at
@@ -107,6 +115,23 @@ new dated note beneath it, never rewrite. See `engineering-paved-path:engineerin
 - 2026-10-02 — The test-quality lens is a **fourth Phase 2 gate, not a rubric folded into `/code-review`**:
   `/code-review` is a built-in whose review recipe this plugin cannot extend, so a folded rubric would be a hope,
   not an instruction. Cost: one more (cheap-tier) agent per run. Evidence: `skills/run-plan/SKILL.md` (Phase 2).
+
+- 2026-10-21 — **Fix passes: one rule, no carve-out.** A downstream copy of `run-plan` had made "a small fix
+  pass in the main thread" the one exception to boundary 1, while this repo's 1.2.0 work said "no carve-outs".
+  Kept the latter: the downstream project's own evidence (a main-conversation turn running a recipe cost more
+  than five reviews) is the same mechanism — every main-thread call re-reads the whole conversation. The real
+  cost the exception was dodging is a fresh agent's re-grounding, so the cheap route named for a small pass is
+  to **resume** the unit's live `implementer`, not to edit inline. Evidence: `skills/run-plan/SKILL.md`
+  (Cost notes; Phase 3 step 4).
+- 2026-10-21 — **Telemetry is opt-in by folder, not moved out of the repo.** A user-scope install fired the hook
+  in every project and created `retros/` in each. Moving the default to the home directory would have moved
+  existing projects' ledgers away from where `retro` reads them; requiring `retros/` to exist leaves every
+  project that already uses `retro` unchanged and touches no other. Evidence: `scripts/capture-telemetry.mjs`
+  (`ledgerPath`).
+- 2026-10-21 — **`implementer` loads skills by name; it does not preload.** Agent frontmatter `skills:` cannot
+  depend on the unit's track, so the only per-track preload would be two agents. Loading exactly the skills the
+  plan names (track defaults when it names none) keeps one agent and makes the planner's per-unit list the
+  actual skill set. Evidence: `agents/implementer.md`, `agents/implementation-planner.md` (Skills).
 
 ## Tool & Library Notes
 
@@ -168,6 +193,14 @@ new dated note beneath it, never rewrite. See `engineering-paved-path:engineerin
   shared-branch guardrail. Instruction-only change — nothing here was exercised by a real `run-plan` run; the
   next retro is the test. Not changed: `agents/implementer.md` Step 1 still tells the agent to read the
   project's insights doc itself, which the brief now has to override in words.
+
+- 2026-10-21 — Shipped 1.2.0 as one release: `feat/run-plan-retro-lessons` and
+  `feat/spec-creator-grounding-pack` (both had claimed 1.2.0) merged into one branch, plus the general edits a
+  downstream project made to its copies (implementer context budget, planner unit sizing, mechanical loops,
+  `modelCalls` / `peakContextTokens`, peak context in `retro`), the per-message-id usage fix, per-unit skill
+  loading and opt-in telemetry. The 2026-10-02 note's "not changed: `implementer` Step 1" is now changed — a
+  learnings excerpt in the brief stands in for the insights file. The `run-plan` motivating-case token figures
+  were read from pre-fix ledgers; they were left as written, with one note that they are about 2–3× the spend.
 
 ## Open Questions
 
