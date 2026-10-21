@@ -4,6 +4,17 @@ All notable changes to **sdd-engineering** are documented here. The format follo
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this plugin adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Behavioural eval suite** — `evals/`, six cases for the 1.2.0 instruction changes. They cover
+  `implementer` skill loading (named skills, and the track defaults when none are named), the
+  planner's per-unit skills and unit sizing, `run-plan`'s start-of-run telemetry check,
+  `spec-creator`'s grounding pack, and `retro` over a ledger that mixes rows from before and after
+  1.2.0. Cases 03–06 run under `claude plugin eval`. Cases 01–02 run through
+  `evals/run-outside-harness.mjs`, because the harness refuses the worktree `implementer` runs in.
+  See `evals/README.md`. No change to the plugin's behaviour.
+
 ## [1.2.0] - 2026-10-21
 
 One consolidated release of three lines of work: `run-plan` hardened against the recommendations that

@@ -1,0 +1,54 @@
+schema_version: "1.1"
+name: implementer-named-skills
+description: >-
+  A UI unit that names two skills: the implementer loads exactly those two with the Skill
+  tool, and nothing from the backend set.
+tags: [implementer, skills, worktree]
+# sdd-engineering loads only with its three dependencies beside it.
+plugins: ["../..", "../../../engineering-paved-path", "../../../research-tools", "../../../architecture-review"]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  max_turns: 10
+  timeout_seconds: 900
+  allowed_tools: [Read, Glob, Grep, Agent, Skill, Bash, Write, Edit]
+runs: 3
+graders:
+  - name: dispatched-implementer
+    type: tool_used
+    tool: Agent
+    input_match: '"subagent_type"\s*:\s*"sdd-engineering:implementer"'
+    min: 1
+  - name: loads-typescript-expert
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"engineering-paved-path:typescript-expert"'
+    min: 1
+  - name: loads-frontend-ui-architecture
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"engineering-paved-path:frontend-ui-architecture"'
+    min: 1
+  - name: no-backend-skills
+    type: tool_used
+    tool: Skill
+    input_match: 'onion-architecture|fastify-best-practices|drizzle-orm-patterns|postgresql-table-design'
+    min: 0
+    max: 0
+  # Exactly the named two. pr-self-review is the one exception implementer.md itself
+  # names ("e.g. engineering-paved-path:pr-self-review on your diff").
+  - name: no-unnamed-skills
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?!engineering-paved-path:(?:typescript-expert|frontend-ui-architecture|pr-self-review)")'
+    min: 0
+    max: 0
+  - name: unit-done-and-reported
+    type: llm
+    criteria: |
+      The reply is (or quotes) the implementer's return summary for unit T1. PASS only if all hold:
+      1. It reports the unit `done` (not `blocked`).
+      2. Its tests line shows the test run passing, and typecheck is reported clean.
+      3. Its "Skills applied" line names engineering-paved-path:typescript-expert and
+         engineering-paved-path:frontend-ui-architecture, and names no backend skill
+         (onion-architecture, fastify-best-practices, drizzle-orm-patterns, postgresql-table-design).
