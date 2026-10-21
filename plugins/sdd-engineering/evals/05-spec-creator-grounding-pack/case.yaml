@@ -39,8 +39,9 @@ graders:
       greeting is rendered in two places: the banner (GreetingBanner.js) and the footer (Footer.js). In the
       repository, "Hello there" also comes from apps/api/src/modules/greetings/service.js and
       apps/api/src/modules/digest/digestTemplate.js. PASS only if all hold:
-      1. It has a "Grounding pack" section whose entries each pair a `path:line` reference with a specific,
-         self-contained fact (for example `apps/web/messages/en.js:2 → 'greeting.hello' is 'Hello there'`),
-         not a bare file name or a vague label.
+      1. It has a "Grounding pack" section of `path:line → fact` entries, each fact specific and
+         self-contained (for example `apps/web/messages/en.js:2 → 'greeting.hello' is 'Hello there'`), not a
+         bare file name or a vague label. An entry about a whole file or folder (one that is missing, empty,
+         or holds only certain files) may cite the path without a line.
       2. It has a "Brief deltas" line that says the brief's list of places is incomplete or wrong, and names
          at least one of apps/api/src/modules/greetings/service.js or apps/api/src/modules/digest/digestTemplate.js.
