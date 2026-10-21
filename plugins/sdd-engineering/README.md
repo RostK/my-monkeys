@@ -18,7 +18,8 @@ spec-creator ──▶ implementation-planner ──▶ run-plan ──▶ retro
               ┌───────────────────────────────┴───────────────────────────────┐
               build            review (parallel)            verify        gate
            implementer   plan-verifier · architecture-      /run     pr-self-review
-                         reviewer · /code-review
+                         reviewer · /code-review ·
+                         test-quality
 ```
 
 1. **`spec-creator`** — authors the spec (the **WHAT**: problem, EARS acceptance criteria,
@@ -30,7 +31,8 @@ spec-creator ──▶ implementation-planner ──▶ run-plan ──▶ retro
    - **build** — fans out **`implementer`** per task unit (worktree-isolated, file-scoped, tests +
      typecheck green);
    - **review** (parallel) — **`plan-verifier`** (requirement coverage with `path:line` verdicts),
-     **`architecture-reviewer`** (structure), and `/code-review` (line-level bugs);
+     **`architecture-reviewer`** (structure), `/code-review` (line-level bugs), and a test-quality
+     pass (assertions that cannot fail, untested new branches, real-time sleeps);
    - **fix loop** → **runtime verify** (`/run` drives the real stack) → **gate**
      (`engineering-paved-path:pr-self-review`) → report.
 4. **`retro`** — documents SDD-harness performance: aggregates a durable telemetry ledger (see below)

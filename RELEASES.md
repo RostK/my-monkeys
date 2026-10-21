@@ -27,7 +27,7 @@ at the time you're reading this.
 
 ## At a glance
 
-All seven versions ever released, across all four catalog plugins:
+All eight versions ever released, across all four catalog plugins:
 
 | Plugin | Version | Date | Tag | Status |
 |---|---|---|---|---|
@@ -37,7 +37,8 @@ All seven versions ever released, across all four catalog plugins:
 | `architecture-review` | 1.1.0 | 2026-07-14 | `architecture-review--v1.1.0` | shipped before tagged; backfilled tag |
 | `sdd-engineering` | 1.0.0 | 2026-07-13 | `sdd-engineering--v1.0.0` | tagged |
 | `sdd-engineering` | 1.1.0 | 2026-07-14 | `sdd-engineering--v1.1.0` | shipped before tagged; backfilled tag; **superseded by 1.1.1** |
-| `sdd-engineering` | 1.1.1 | 2026-07-14 | `sdd-engineering--v1.1.1` | shipped before tagged; backfilled tag; current |
+| `sdd-engineering` | 1.1.1 | 2026-07-14 | `sdd-engineering--v1.1.1` | shipped before tagged; backfilled tag |
+| `sdd-engineering` | 1.2.0 | 2026-10-02 | `sdd-engineering--v1.2.0` | tagged on merge; current |
 
 ## engineering-paved-path
 
@@ -81,7 +82,21 @@ citations. Declares a dependency on `engineering-paved-path` `^1.0.0`.
 
 ## sdd-engineering
 
-### [1.1.1] - 2026-07-14 — current
+### [1.2.0] - 2026-10-02 — current
+
+**Tag:** `sdd-engineering--v1.2.0` — cut by the `Tag on merge` workflow when this version lands on
+`main`.
+
+`run-plan` changes that close the recommendations recurring across two retrospectives of one plan:
+a fourth Phase 2 review gate for test quality (assertions that cannot fail, untested new branches,
+real-time sleeps); a drift sweep and a per-unit context pack at intake; an explicit worktree-base
+sync as step 0 of every implementer brief; a short human check before any fix to something a human
+perceives (screen-reader speech, visual judgement); and a guardrail for a working branch shared with
+a spawned session. Fix rounds are now dispatched without exception, read-only reviewers launched as
+`general-purpose` get an explicit cheaper model, and a long run hands off to a fresh session at
+phase boundaries.
+
+### [1.1.1] - 2026-07-14
 
 **Tag:** `sdd-engineering--v1.1.1` **(backfilled tag)** — this version shipped to `main` before a
 tag existed for it; see the note above.

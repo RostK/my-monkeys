@@ -41,6 +41,20 @@ new dated note beneath it, never rewrite. See `engineering-paved-path:engineerin
   watermark, so the real `Stop` row behind it reports zero. A step must bill its own transcript or nothing.
   Evidence: `scripts/capture-telemetry.mjs` (`transcriptPath` in `main`, fixed in 1.1.1).
 
+- 2026-10-02 — **A rule stated once, as a boundary, is rationalised away at the point of use.** `run-plan`
+  already said "you never write code" (boundary 1), "dispatch fixes" (Phase 3) and "fix via a Phase-3 dispatch"
+  (Phase 3.5); an orchestrator still fixed two defects its own Phase 3.5 pass found ("quicker to fix here") and
+  then did all four fix rounds on the main thread — 60% of a 494.8M-token run. What the text lacked was the
+  temptation named where it arises (a "small" fix, a self-found defect, a `pr-self-review` finding, a review
+  answer after a push) and the reason in cost terms. When hardening a skill rule, add the exemptions people
+  will invent, at the step where they invent them; do not restate the boundary. Evidence:
+  `skills/run-plan/SKILL.md` (Phase 3 step 4, "Cost & toggle notes").
+- 2026-10-02 — **A retro recommendation that lands as advice is not acted on.** "Inject a shared context pack"
+  was recommended by two consecutive retros and done in neither run; the skill said "only its own unit" and
+  every implementer was still pointed at the whole plan, spec and learnings file. A recommendation that recurs
+  becomes a numbered step with a concrete artefact (a brief file, a path handed to the worker), or it will
+  recur again. Evidence: `skills/run-plan/SKILL.md` (Phase 0 steps 3–4).
+
 ## Codebase Patterns
 
 - 2026-07-14 — A plugin edit in this repo is **not** what actually runs. The live hook is the installed copy at
@@ -81,6 +95,18 @@ new dated note beneath it, never rewrite. See `engineering-paved-path:engineerin
 - 2026-07-14 — The ledger records `cacheReadTokens` **and** `cacheCreationTokens` separately, because cache-hit % is
   `cacheReadTokens ÷ (inputTokens + cacheReadTokens + cacheCreationTokens)` — with `input_tokens` alone (often
   literally single digits, e.g. `2`) the ratio is meaningless. Evidence: `skills/retro/SKILL.md`.
+- 2026-10-02 — **`run-plan`'s Phase 4 `pr-self-review` stays on the whole diff**, even though a second full read
+  mostly re-finds what Phase 2 reported (7.4M tokens in one run). Narrowing it to the delta since Phase 2 was
+  rejected: `pr-gate.mjs record` stamps a hash of the *entire* review scope, so a "clean" verdict would vouch for
+  files never read against the routed skills (security, zod, drizzle, the critical list) — Phase 2's gates apply
+  different rubrics. The cost is attacked from the other side instead: cheaper model for the bucket reviewers,
+  and the test-quality lens moved into Phase 2. The clean way to get the saving is an incremental mode in
+  `pr-self-review` itself (full pass in Phase 2, changed files only in Phase 4) — not built. Evidence:
+  `skills/run-plan/SKILL.md` (Phase 4), `engineering-paved-path` `skills/pr-self-review/hooks/pr-gate.mjs`
+  (`currentDiffHash`).
+- 2026-10-02 — The test-quality lens is a **fourth Phase 2 gate, not a rubric folded into `/code-review`**:
+  `/code-review` is a built-in whose review recipe this plugin cannot extend, so a folded rubric would be a hope,
+  not an instruction. Cost: one more (cheap-tier) agent per run. Evidence: `skills/run-plan/SKILL.md` (Phase 2).
 
 ## Tool & Library Notes
 
@@ -134,6 +160,14 @@ new dated note beneath it, never rewrite. See `engineering-paved-path:engineerin
   in older ledgers. Verified by replaying the captured payload plus 5 regression cases (real planner, blank-label
   real agent, unreadable-transcript real agent, cross-billing) — all pass; on the released 1.1.0 the same suite
   fails 3. Also disproved this session's premise that `Stop` rows are cumulative (see Decisions).
+
+- 2026-10-02 — Hardened `run-plan` against the lessons of two retros of one plan (v1.1.1 → v1.2.0): fix rounds
+  dispatched with no carve-outs, cheaper tier for every `general-purpose` reviewer, a fourth (test-quality)
+  review gate, a drift sweep and per-unit context pack at intake, an explicit worktree-base sync, a human
+  sensory gate before fixes to what a human perceives, session hand-off at phase boundaries, and a
+  shared-branch guardrail. Instruction-only change — nothing here was exercised by a real `run-plan` run; the
+  next retro is the test. Not changed: `agents/implementer.md` Step 1 still tells the agent to read the
+  project's insights doc itself, which the brief now has to override in words.
 
 ## Open Questions
 
