@@ -19,3 +19,6 @@ retros/.ledger-state/
 # OS
 .DS_Store
 Thumbs.db
+
+# plugin eval run output (claude plugin eval) — per-machine
+plugins/*/evals/results/

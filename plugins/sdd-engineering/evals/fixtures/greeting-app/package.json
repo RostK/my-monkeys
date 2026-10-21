@@ -1,0 +1,9 @@
+{
+  "name": "greeting-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "typecheck": "node scripts/typecheck.mjs"
+  }
+}

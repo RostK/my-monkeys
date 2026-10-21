@@ -1,0 +1,49 @@
+schema_version: "1.1"
+name: run-plan-telemetry-check
+description: >-
+  run-plan's start-of-run telemetry check (Phase 0 step 5) in a project with no retros/
+  folder: it says telemetry is off and offers to create retros/, without creating it.
+tags: [run-plan, telemetry, harness]
+# sdd-engineering loads only with its three dependencies beside it.
+plugins: ["../..", "../../../engineering-paved-path", "../../../research-tools", "../../../architecture-review"]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  max_turns: 25
+  timeout_seconds: 600
+  # Bash and Write are granted so that creating retros/ is possible and not doing it is a choice.
+  allowed_tools: [Read, Glob, Grep, Skill, Bash, Write]
+runs: 3
+graders:
+  - name: loaded-run-plan
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:sdd-engineering:)?run-plan"'
+    min: 1
+  - name: stopped-before-build
+    type: tool_used
+    tool: Agent
+    input_match: 'implementer'
+    min: 0
+    max: 0
+  - name: did-not-mkdir-retros
+    type: tool_used
+    tool: Bash
+    input_match: 'mkdir[^"]*retros'
+    min: 0
+    max: 0
+  # A file under retros/ would mean the folder was created (the telemetry hook also writes
+  # retros/ledger.jsonl at the end of a session once the folder exists).
+  - name: did-not-create-retros
+    type: file_exists
+    path: 'retros/**'
+    exists: false
+  - name: reports-telemetry-off-and-offers
+    type: llm
+    criteria: |
+      The reply ends Phase 0 (intake) of an SDD run-plan. The project has no retros/ folder and no
+      SDD_TELEMETRY_LEDGER variable, so the plugin's telemetry ledger is off. PASS only if all hold:
+      1. The reply says telemetry is off for this run, or says that no telemetry ledger will be written
+         because there is no retros/ folder (or no SDD_TELEMETRY_LEDGER).
+      2. It offers to create retros/ (asking, or leaving the choice to the user) so that the run is captured.
+      3. It does not say that retros/ was created.

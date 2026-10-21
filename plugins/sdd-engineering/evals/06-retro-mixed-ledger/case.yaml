@@ -1,0 +1,59 @@
+schema_version: "1.1"
+name: retro-mixed-ledger
+description: >-
+  retro over a ledger that mixes rows written before 1.2.0 (no modelCalls key, token sums
+  about 2–3× too high) with 1.2.0 rows: it keeps the two kinds apart, flags the old rows as
+  inflated, and reports peak context per agent.
+tags: [retro, telemetry, harness]
+# sdd-engineering loads only with its three dependencies beside it.
+plugins: ["../..", "../../../engineering-paved-path", "../../../research-tools", "../../../architecture-review"]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  max_turns: 30
+  timeout_seconds: 900
+  allowed_tools: [Read, Glob, Grep, Skill, Bash, Write, Edit]
+runs: 3
+graders:
+  - name: loaded-retro
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:sdd-engineering:)?retro"'
+    min: 1
+  - name: report-written
+    type: file_exists
+    path: 'retros/RETRO-*.md'
+  # Fixture sums: rows without modelCalls 4,600,000; rows with it 13,000,000. Adding them
+  # gives 17,600,000, which a correct report never shows.
+  - name: no-old-plus-new-total
+    type: regex
+    pattern: '17[.,]6\s?M|17[,. ]?600[,. ]?000|\b17\.6\b'
+    match: not_contains
+  - name: mentions-inflation
+    type: regex
+    pattern: '2\s?[–-]\s?3\s?(?:×|x)|inflat'
+    flags: i
+  - name: reports-the-452k-peak
+    type: regex
+    pattern: '452'
+  - name: keeps-old-and-new-rows-apart
+    type: llm
+    criteria: |
+      The reply is a workflow retro over a telemetry ledger. Rows dated 2026-10-10 (spec-creator,
+      implementation-planner and two main-thread rows) have no `modelCalls` key: they were written before
+      plugin 1.2.0, and their token figures are about 2–3× the real spend. Rows dated 2026-10-20 have
+      `modelCalls` and are accurate. PASS only if all hold:
+      1. The report never gives one token total that adds the 2026-10-10 figures to the 2026-10-20 figures
+         as if they were the same kind. Separate totals per kind pass, as do old figures recounted or
+         deflated and labelled as estimates.
+      2. It says the 2026-10-10 rows' token figures are inflated, or overstated by about 2–3×, because
+         they predate 1.2.0 or lack the modelCalls key.
+  - name: peak-context-per-agent
+    type: llm
+    criteria: |
+      The reply is a workflow retro over a telemetry ledger whose 2026-10-20 rows carry `peakContextTokens`:
+      implementer 58,000 and 452,300; plan-verifier 96,500; architecture-reviewer 61,200; main 212,400. The
+      2026-10-10 rows have no such key. PASS only if all hold:
+      1. It reports peak context per agent for the 2026-10-20 rows.
+      2. It flags the implementer whose peak is about 452k as over the ~400k context budget.
+      3. It gives peak context for the 2026-10-10 rows as unknown (or not recorded), not as 0.

@@ -1,0 +1,46 @@
+schema_version: "1.1"
+name: spec-creator-grounding-pack
+description: >-
+  spec-creator in author mode returns a grounding pack of path:line → fact entries and a
+  Brief deltas line. The brief names two places the greeting is rendered; the fixture has more.
+tags: [spec-creator, grounding-pack, harness]
+# sdd-engineering loads only with its three dependencies beside it.
+plugins: ["../..", "../../../engineering-paved-path", "../../../research-tools", "../../../architecture-review"]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  max_turns: 10
+  timeout_seconds: 1500
+  allowed_tools: [Read, Glob, Grep, Agent, Skill, Bash, Write, Edit]
+runs: 3
+graders:
+  - name: dispatched-spec-creator
+    type: tool_used
+    tool: Agent
+    input_match: '"subagent_type"\s*:\s*"sdd-engineering:spec-creator"'
+    min: 1
+  - name: spec-written
+    type: file_exists
+    path: 'specs/**/SPEC-*.md'
+  - name: has-grounding-pack
+    type: regex
+    pattern: 'Grounding pack'
+  # At least three `path:line → fact` entries (an arrow or "->" after a file:line reference).
+  - name: has-path-line-entries
+    type: regex
+    pattern: '(?:[\w./-]+\.\w+:\d+[^\n]*(?:→|->)[^\n]*\n[\s\S]*?){3}'
+  - name: has-brief-deltas
+    type: regex
+    pattern: 'Brief deltas'
+  - name: pack-and-deltas-are-substantive
+    type: llm
+    criteria: |
+      The reply is spec-creator's return summary for a "time-of-day greeting" spec. Its brief said the
+      greeting is rendered in two places: the banner (GreetingBanner.js) and the footer (Footer.js). In the
+      repository, "Hello there" also comes from apps/api/src/modules/greetings/service.js and
+      apps/api/src/modules/digest/digestTemplate.js. PASS only if all hold:
+      1. It has a "Grounding pack" section whose entries each pair a `path:line` reference with a specific,
+         self-contained fact (for example `apps/web/messages/en.js:2 → 'greeting.hello' is 'Hello there'`),
+         not a bare file name or a vague label.
+      2. It has a "Brief deltas" line that says the brief's list of places is incomplete or wrong, and names
+         at least one of apps/api/src/modules/greetings/service.js or apps/api/src/modules/digest/digestTemplate.js.
