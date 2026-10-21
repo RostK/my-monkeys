@@ -4,7 +4,7 @@ All notable changes to **sdd-engineering** are documented here. The format follo
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this plugin adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-10-02
+## [1.2.0] - 2026-10-21
 
 All changes are to `skills/run-plan/SKILL.md`, and each closes a recommendation that recurred across
 two retros of `run-plan` on one plan (95.3M tokens, then 494.8M with the orchestrator at 60% of it).
@@ -32,6 +32,19 @@ two retros of `run-plan` on one plan (95.3M tokens, then 494.8M with the orchest
   conversation at the orchestrator's tier; and on a long run a phase boundary is a session boundary
   — offer a hand-off to a fresh session (or compact) after Phase 1 integration, after the fix loop,
   and at any human gate, with the plan file as the carried state.
+- **Grounding pack.** `spec-creator` now records a `path:line → fact` list for every claim the spec
+  rests on and returns it in its summary; `write-spec` carries it into each subsequent RESOLVE brief,
+  and RESOLVE spot-checks it instead of re-deriving the codebase from zero. Two consecutive retros
+  recommended this and it was the binding constraint on `write-spec` cost: without it a fresh agent
+  re-grounds from nothing on every pass, so passes get *more* expensive as their scope shrinks
+  (SPEC-02: 917k → 1.34M → 3.19M tokens, the last one merely folding in two answers). The escalation
+  is re-grounding, not reasoning — SPEC-01's "resume re-bills the transcript" hypothesis is refuted
+  and closed: that run used fresh agents throughout and escalated anyway.
+- **"Enumerate, don't trust the brief."** When a brief supplies a set (versions, files, plugins),
+  `spec-creator` must now derive the true set from the repo before writing ACs against it and report
+  the delta — a brief's enumeration is a hypothesis to falsify, not an input to copy. SPEC-02's brief
+  named two untagged plugin versions; the truth was three, and the third surfaced only in the final
+  pass, by exactly this method. The agent's `Brief deltas` line reports what the brief got wrong.
 
 ### Changed
 - **No carve-out from "you never write code".** Phase 3 step 4 now names the cases that were
@@ -51,6 +64,15 @@ two retros of `run-plan` on one plan (95.3M tokens, then 494.8M with the orchest
   vouches for the entire pushed diff. Narrowing it to the delta since Phase 2 was considered and
   rejected for that reason.
 - `README.md` — the loop diagram and the `run-plan` summary list the fourth review gate.
+- **An unstated policy value is now an `NC-n`, never a silent default.** SLAs, acknowledgement
+  windows, retention, thresholds, ownership are the maintainer's to decide. Filling one in quietly
+  costs a full extra round: on SPEC-02 the author pass invented an acknowledgement window, resolve
+  retracted it, and the retraction became a *new* NC that could have ridden in the first batch. Each
+  NC now also carries a one-line "why the options differ" so it closes on the first ask.
+- **Background research is the documented default.** `write-spec` step 2 now launches the researcher
+  non-blocking and asks the user their `NC-n` questions while it runs, so research costs zero
+  wall-clock instead of blocking the loop — proven on two runs (SPEC-02: 4.3 min fully hidden under
+  an AskUserQuestion round). Applies equally to a `needs external research` NC surfaced by the draft.
 
 ## [1.1.1] - 2026-07-14
 

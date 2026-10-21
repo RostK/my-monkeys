@@ -31,16 +31,27 @@ the answers back until the spec is clean.
          (fan out several in parallel if useful; use the deep-research skill for heavy web work).
          Researchers can ONLY be spawned here in the main thread — the spec-creator agent cannot.
          Pass their cited findings into the brief. Skip this step for ordinary in-repo features.
+         **Launch it in the BACKGROUND and ask the user your `NC-n` questions while it runs** — the
+         research then costs zero wall-clock instead of blocking the loop. This applies equally to a
+         `needs external research` NC surfaced later by step 3: fire the researcher first, then open
+         the AskUserQuestion round. A researcher fits the `researcher` agent on a cheaper tier; the
+         value it adds is a *cited* answer — including an honest "not documented anywhere", which is
+         exactly the claim you must never make from memory.
 - [ ] 3. DRAFT — invoke the `spec-creator` agent (Task) in AUTHOR mode with the feature brief
-         (request + input type + any research findings + supersede target if any). It returns the
-         written spec path, Spec ID, Proposed improvements, and a machine-readable list of open
-         `NC-n` markers.
+         (request + input type + any research findings + supersede target if any). Hand it whatever
+         you already grounded yourself as a hypothesis to falsify, not as fact — say so explicitly.
+         It returns the written spec path, Spec ID, Proposed improvements, a **grounding pack**
+         (`path:line → fact`), brief deltas, and a machine-readable list of open `NC-n` markers.
+         **Keep the grounding pack** — step 5 feeds it back.
 - [ ] 4. ASK — if the agent returned any `NC-n`, ask the user via AskUserQuestion (batch related
          questions, recommend a default). Non-blocking design suggestions from "Proposed
          improvements" are proposed, not required. Collect the answers keyed by `NC-n`.
 - [ ] 5. RESOLVE — re-invoke the `spec-creator` agent (Task) in RESOLVE mode with the spec path + the
-         `NC-n` → answer map. It folds answers in, deletes resolved markers, re-runs self-check, and
-         raises Status per the approval gate.
+         `NC-n` → answer map **+ the grounding pack from the previous pass, verbatim**. Without the
+         pack the fresh agent re-grounds from zero, and that re-grounding — not the reasoning — is
+         what makes each pass cost more than the last even as its scope shrinks. It folds answers in,
+         deletes resolved markers, re-runs self-check, raises Status per the approval gate, and
+         returns the pack again (carry it into the next pass too).
 - [ ] 6. LOOP — repeat 4–5 until no blocking `NC-n` remains OR the user chooses to stop / defer. If a
          round does not reduce the open `NC-n`, STOP and report — do not loop forever.
 - [ ] 7. REPORT — show the final spec path, Spec ID, current Status, the Proposed improvements, and
