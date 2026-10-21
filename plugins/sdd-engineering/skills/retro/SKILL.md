@@ -26,6 +26,17 @@ plan-implementation tomorrow, run-plan the day after), so the in-context session
 steps is long gone by the time you retro. The reliable source is therefore a **durable per-step
 telemetry ledger** that a `SubagentStop` / `Stop` hook appends to as each step runs — read it first.
 
+**The ledger is opt-in (1.2.0+).** The hook writes only where `SDD_TELEMETRY_LEDGER` points, or to
+`retros/ledger.jsonl` when the project already has a `retros/` folder. No folder and no variable →
+no ledger: say so, take the fallback below, and tell the user that creating `retros/` turns capture
+on for the next run.
+
+**Which `retros/` the hooks write to follows the project folder the session started from
+(`$CLAUDE_PROJECT_DIR`).** For work in a git worktree that is often the MAIN checkout, sometimes the
+worktree itself — look in both before calling the ledger missing. A worktree session that cannot
+write to the main checkout's `retros/` writes the report under its own, prints the trend row in its
+final message, and says the row is not appended.
+
 1. **Durable ledger (primary).** Read the telemetry ledger — default **`retros/ledger.jsonl`** under
    the project root (use the project's configured path if different). It is append-only JSONL, one
    record per agent/step as it completed. Parse it with a small script and **aggregate** — extract
@@ -33,6 +44,14 @@ telemetry ledger** that a `SubagentStop` / `Stop` hook appends to as each step r
    chat boundary, it captures steps run in *other* sessions, which is the whole point.
 
    Each record (written by `scripts/capture-telemetry.mjs`, v1.1.0+):
+
+   🔴 **Rows without a `modelCalls` key (written before 1.2.0) are inflated.** The transcript writes
+   one entry per content block of an answer, each repeating the answer's whole usage, and the old
+   hook summed entry by entry — every token key is 1.9–3.0× the real spend, worst where an agent
+   makes several tool calls per answer. From 1.2.0 each model call is counted once (by message id).
+   Never add old rows to new ones; report old-row token figures as "ledger figure, about 2–3× the
+   spend", or recount from the transcripts by message id. Ratios between old rows mostly hold;
+   `cache-hit %` is a ratio and is unaffected.
 
    | key | meaning |
    |---|---|
@@ -45,6 +64,8 @@ telemetry ledger** that a `SubagentStop` / `Stop` hook appends to as each step r
    | `cacheReadTokens` · `cacheCreationTokens` | **cache-hit % = `cacheReadTokens` ÷ (`inputTokens` + `cacheReadTokens` + `cacheCreationTokens`)** — the cost signal |
    | `tokens` | total billed = input + output + both cache classes |
    | `toolUses` · `durationMs` | tool_use blocks, and wall-clock for that step |
+   | `modelCalls` | 1.2.0+ · distinct model calls the row covers, counted by message id; `null` = unknown. Its presence marks a row whose token sums are per call |
+   | `peakContextTokens` | 1.2.0+ · the largest context one of those calls read: input + cache-read + cache-creation; `null` = unknown |
 
    **Drop phantom `SubagentStop` rows before you count agents.** The harness fires `SubagentStop` for
    its own internal agents too, not only Task-tool ones — one fires whenever a new user prompt is
@@ -119,6 +140,9 @@ agent count. A retro with three real rows and two "unknown" rows is worth more t
          by phase / by model tier), **cache-hit %** (cache-read ÷ input — the cost-engineering signal),
          total tool-calls, wall-clock vs sum-of-agent-time (parallelism efficiency), fix-loop rounds
          (rework), failure/retry count. Include nested-subagent tokens (from the ledger / deep mode) or mark `~partial`.
+         **Peak context per agent** (`peakContextTokens`, with its `modelCalls`): flag any agent whose peak
+         passes about 400k. An agent's cost goes with its context times its calls, since every call re-reads
+         the whole context. Rows written before the keys existed: `unknown`.
 - [ ] 4. QUALITATIVE — for each agent/phase judge: HARD vs EASY (token/tool-use/duration outliers + blockers);
          DUPLICATED context (same files/briefs/skills read by ≥2 agents — redundant grounding); MISSED info
          (out-of-scope needs surfaced late, clarifications/NCs raised, re-dispatches); WASTED parallelism
@@ -153,6 +177,8 @@ Scope: <phases covered> · Source: <durable ledger retros/ledger.jsonl | in-cont
 - Agents: N launched (M productive · K wasted/retried) · Fix-loop rounds: R
 - Tokens: total in/out (by phase; by model tier) · Cache-hit: X% · Tool-calls: N
 - Wall-clock ≈ vs sum-of-agent-time (parallelism factor)
+- Peak context per agent: <agent — peak · calls> · over about 400k: <agents, or none> (cost goes with
+  context × calls; `unknown` for rows written before the keys existed)
 - Failures/retries: <list with cause> · Rework traced to: spec | plan | code
 
 ## What went well / hard

@@ -18,7 +18,8 @@ spec-creator ──▶ implementation-planner ──▶ run-plan ──▶ retro
               ┌───────────────────────────────┴───────────────────────────────┐
               build            review (parallel)            verify        gate
            implementer   plan-verifier · architecture-      /run     pr-self-review
-                         reviewer · /code-review
+                         reviewer · /code-review ·
+                         test-quality
 ```
 
 1. **`spec-creator`** — authors the spec (the **WHAT**: problem, EARS acceptance criteria,
@@ -30,7 +31,8 @@ spec-creator ──▶ implementation-planner ──▶ run-plan ──▶ retro
    - **build** — fans out **`implementer`** per task unit (worktree-isolated, file-scoped, tests +
      typecheck green);
    - **review** (parallel) — **`plan-verifier`** (requirement coverage with `path:line` verdicts),
-     **`architecture-reviewer`** (structure), and `/code-review` (line-level bugs);
+     **`architecture-reviewer`** (structure), `/code-review` (line-level bugs), and a test-quality
+     pass (assertions that cannot fail, untested new branches, real-time sleeps);
    - **fix loop** → **runtime verify** (`/run` drives the real stack) → **gate**
      (`engineering-paved-path:pr-self-review`) → report.
 4. **`retro`** — documents SDD-harness performance: aggregates a durable telemetry ledger (see below)
@@ -60,9 +62,17 @@ spec-creator ──▶ implementation-planner ──▶ run-plan ──▶ retro
 SDD steps are often run **separately** — spec now, planning later, implementation in another session —
 so by the end, the earlier steps' in-context telemetry is gone. To keep the record, this plugin ships a
 **`SubagentStop` / `Stop` hook** that appends each step's telemetry (agent, tokens, tool-uses,
-duration, status) to a durable per-project ledger (default `retros/ledger.jsonl`). `retro` then
+duration, status) to a durable per-project ledger (`retros/ledger.jsonl`). `retro` then
 **aggregates the ledger** — so `write-spec` and planning performance survive to the final report.
 *Capture is per-step; the documented report is end-of-run.*
+
+**Capture is opt-in** (1.2.0+): the hook writes only when the project already has a `retros/` folder,
+or to wherever `SDD_TELEMETRY_LEDGER` points. Installed at user scope, the plugin therefore leaves
+projects that never asked for telemetry untouched. To turn it on: `mkdir retros` (and git-ignore
+`retros/ledger.jsonl` and `retros/.ledger-state/` — they are machine-local). The folder is looked
+for in the session's project folder, so a session started inside a git worktree is captured only if
+that checkout has `retros/` too (it does when retro reports are committed there), or when
+`SDD_TELEMETRY_LEDGER` names one shared ledger.
 
 ## Usage
 
@@ -83,7 +93,7 @@ Installing `sdd-engineering` **auto-installs** its dependencies (all `^1.0.0`, s
 sdd-engineering
 ├── research-tools              (researcher — investigation)
 ├── architecture-review ─┐      (architecture-reviewer — review phase)
-└── engineering-paved-path ◀────┘  (skills the agents preload; shared base)
+└── engineering-paved-path ◀────┘  (skills the agents load; shared base)
 ```
 
 ## Install

@@ -16,30 +16,39 @@ That section is the single normative definition; it is not restated here.
 
 ## A note on the three backfilled tags
 
-Three of the seven versions below shipped to `main` before a tag existed for them (the tag was
-cut later, pointing at the historical commit that actually shipped the version — see
-[`scripts/backfill-tags.sh`](scripts/backfill-tags.sh)). As of this writing, `git tag -l` shows
-only the **four** tags for versions that were tagged at release time; the three backfilled tags
-are created by a maintainer running `scripts/backfill-tags.sh --apply` and pushing the result —
-this has not happened yet. Each affected entry below is marked **(backfilled tag)** and states
-the tag name that names the version's commit either way, whether or not that tag has been pushed
-at the time you're reading this.
+Three of the versions below shipped to `main` before a tag existed for them (the tag was cut
+later, pointing at the historical commit that actually shipped the version — see
+[`scripts/backfill-tags.sh`](scripts/backfill-tags.sh)). A maintainer created them with
+`scripts/backfill-tags.sh --apply` and pushed the result; as of 2026-10-21 all seven tags cut so
+far are on `origin`. Each affected entry below is marked **(backfilled tag)**.
 
 ## At a glance
 
-All seven versions ever released, across all four catalog plugins:
+All nine versions ever released, across all four catalog plugins:
 
 | Plugin | Version | Date | Tag | Status |
 |---|---|---|---|---|
 | `engineering-paved-path` | 1.0.0 | 2026-07-13 | `engineering-paved-path--v1.0.0` | tagged |
+| `engineering-paved-path` | 1.0.1 | 2026-10-21 | `engineering-paved-path--v1.0.1` | tagged on merge; current |
 | `research-tools` | 1.0.0 | 2026-07-13 | `research-tools--v1.0.0` | tagged |
 | `architecture-review` | 1.0.0 | 2026-07-13 | `architecture-review--v1.0.0` | tagged |
 | `architecture-review` | 1.1.0 | 2026-07-14 | `architecture-review--v1.1.0` | shipped before tagged; backfilled tag |
 | `sdd-engineering` | 1.0.0 | 2026-07-13 | `sdd-engineering--v1.0.0` | tagged |
 | `sdd-engineering` | 1.1.0 | 2026-07-14 | `sdd-engineering--v1.1.0` | shipped before tagged; backfilled tag; **superseded by 1.1.1** |
-| `sdd-engineering` | 1.1.1 | 2026-07-14 | `sdd-engineering--v1.1.1` | shipped before tagged; backfilled tag; current |
+| `sdd-engineering` | 1.1.1 | 2026-07-14 | `sdd-engineering--v1.1.1` | shipped before tagged; backfilled tag |
+| `sdd-engineering` | 1.2.0 | 2026-10-21 | `sdd-engineering--v1.2.0` | tagged on merge; current |
 
 ## engineering-paved-path
+
+### [1.0.1] - 2026-10-21 — current
+
+**Tag:** `engineering-paved-path--v1.0.1` — cut by the `Tag on merge` workflow when this version lands
+on `main`.
+
+The `engineering-insights` Stop hook no longer blocks the first stop of a session that changed no
+code: in a git repo it waits until the session has written a file or made a commit since it started
+(older work-in-progress, pulls and checkouts do not count), and nudges once then, as before. Shipped
+alongside `sdd-engineering` 1.2.0.
 
 ### [1.0.0] - 2026-07-13
 
@@ -81,7 +90,27 @@ citations. Declares a dependency on `engineering-paved-path` `^1.0.0`.
 
 ## sdd-engineering
 
-### [1.1.1] - 2026-07-14 — current
+### [1.2.0] - 2026-10-21 — current
+
+**Tag:** `sdd-engineering--v1.2.0` — cut by the `Tag on merge` workflow when this version lands on
+`main`.
+
+`run-plan` changes that close the recommendations recurring across two retrospectives of one plan:
+a fourth Phase 2 review gate for test quality (assertions that cannot fail, untested new branches,
+real-time sleeps); a drift sweep and a per-unit context pack at intake; an explicit worktree-base
+sync as step 0 of every implementer brief; a short human check before any fix to something a human
+perceives (screen-reader speech, visual judgement); and a guardrail for a working branch shared with
+a spawned session. Fix rounds are now dispatched without exception, read-only reviewers launched as
+`general-purpose` get an explicit cheaper model, and a long run hands off to a fresh session at
+phase boundaries.
+
+Also in this release: `spec-creator` records a grounding pack that `write-spec` carries into each
+resolve pass; `implementer` loads only the skills its unit names and stops at a ~400k-token context
+budget, and `implementation-planner` sizes units to fit it; the telemetry ledger counts each model
+call once (every earlier token figure was 1.9–3.0× too high), gains `modelCalls` and
+`peakContextTokens`, and is written only for projects that opt in with a `retros/` folder.
+
+### [1.1.1] - 2026-07-14
 
 **Tag:** `sdd-engineering--v1.1.1` **(backfilled tag)** — this version shipped to `main` before a
 tag existed for it; see the note above.

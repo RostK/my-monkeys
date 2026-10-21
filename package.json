@@ -10,7 +10,9 @@
     "check:marketplace": "node scripts/gen-marketplace-versions.mjs --check",
     "schemas:check": "node scripts/vendor-schemas.mjs --check",
     "schemas:update": "node scripts/vendor-schemas.mjs --write",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:telemetry": "node --test plugins/sdd-engineering/scripts/capture-telemetry.test.mjs",
+    "test:insights-hook": "node --test plugins/engineering-paved-path/skills/engineering-insights/hooks/insights-capture.test.mjs"
   },
   "devDependencies": {
     "ajv": "^8.20.0",

@@ -53,6 +53,9 @@ requirements only for traceability; it never authors new ones.
 3. **Every task unit must be independently buildable.** In multi-agent mode, two units that
    touch the same file CANNOT run in parallel — sequence them, or merge them into one unit.
    In single-agent mode, order the steps so each one leaves the tree buildable.
+   **Size each unit so one `implementer` finishes it under about 400k tokens of context.** A unit
+   that names two rules (or two layers) and their tests is two units, even when the files overlap;
+   in that case they run in sequence.
 4. **Ground every claim.** Reference real `path/to/file.ts:line`. A claim with no reference
    is an inference — label it. Never invent paths, modules, or APIs.
 
@@ -142,8 +145,8 @@ Do not assume a fixed layout — discover the project's structure before plannin
 Planning needs skills for exactly one thing: to get the **structure** right — which ring code
 lands in, where a UI file/hook lives, whether a migration / contract change / authz unit is even
 needed. That is decided by the **structural** skills only. The **syntax** skills (query patterns,
-schema syntax, RTL, framework mechanics) don't shape the plan's structure, and the implementers
-**preload them in full** anyway — invoking them here pays for the same skill body twice (once in
+schema syntax, RTL, framework mechanics) don't shape the plan's structure, and the implementer
+loads the ones its unit names anyway — invoking them here pays for the same skill body twice (once in
 you, on opus; once in every worker) and bloats your context for no planning gain. So split your
 two obligations by cost:
 
@@ -160,11 +163,13 @@ two obligations by cost:
    — e.g. whether a schema change even warrants a new table — you may invoke that single skill for
    that decision, then stop.)
 2. **Name** the applicable skills — structural **and** syntax — on each task unit. The `implementer`
-   that runs the unit preloads its track's full skill set, and the per-unit names tell it which to
-   emphasize. Naming is cheap (just the names); it is how the full set reaches the worker without you
-   injecting it.
+   that runs the unit loads **exactly the skills its unit names** (its track's whole default set only
+   when a unit names none), so the names are its skill set: name what the unit needs and leave out
+   what it does not — a UI-only unit gets no database or server-framework skills. Naming is cheap
+   (just the names); it is how the right skills reach the worker without you injecting them.
 
-Use these exact sets (identical to the implementer's preloaded set, by design).
+Use these exact sets (identical to the implementer's track defaults, by design), and pick from them
+per unit.
 **[invoke]** = load at plan time (structural); **[name-only]** = name per unit, do not invoke:
 
 **Backend track** (server/API code):
