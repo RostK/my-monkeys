@@ -124,8 +124,13 @@ spend. The ratios between them hold.)*
    runs of one plan every implementer was also pointed at the whole plan, the whole spec and the
    whole learnings file — 883 lines by the second run — six times over; both retros recommended a
    pack and neither run wrote one, which is why this is a step and not advice.)
-5. State in one line: plan path, number of task units, waves, drift hits, and that spec/plan were
-   done separately. Then begin.
+5. **Telemetry check.** The plugin's ledger is opt-in: it is written only where
+   `SDD_TELEMETRY_LEDGER` points, or to `retros/ledger.jsonl` when the project already has a
+   `retros/` folder. If neither holds, this run will leave no ledger for `sdd-engineering:retro` —
+   tell the user, and offer to create `retros/` now (and git-ignore `retros/ledger.jsonl` and
+   `retros/.ledger-state/`) so BUILD onward is captured. Their call; do not create it unasked.
+6. State in one line: plan path, number of task units, waves, drift hits, telemetry on/off, and
+   that spec/plan were done separately. Then begin.
 
 ## Phase 1 — BUILD
 

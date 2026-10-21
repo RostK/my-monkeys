@@ -322,3 +322,32 @@ for (const [where, vars] of [
     assert.equal(rows[0].modelCalls, 3);
   });
 }
+
+test('an answer split across two events is billed once: the second counts its tool call, not its usage', (t) => {
+  const dir = workdir(t);
+  const transcript = join(dir, 'session.jsonl');
+  // The first Stop sees msg_P's text entry only; its tool-call entry (the same
+  // id, the same whole usage) is written after it, with one more answer, msg_Q.
+  writeFileSync(
+    transcript,
+    jsonl([
+      user('2026-10-21T14:00:00.000Z'),
+      assistant('2026-10-21T14:00:02.000Z', 'msg_P', [3, 40, 2000, 0], [text]),
+    ]),
+  );
+  fire(dir, stop(transcript));
+  appendFileSync(
+    transcript,
+    jsonl([
+      assistant('2026-10-21T14:00:03.000Z', 'msg_P', [3, 40, 2000, 0], [toolUse], 'tool_use'),
+      user('2026-10-21T14:00:04.000Z'),
+      assistant('2026-10-21T14:00:09.000Z', 'msg_Q', [2, 10, 2100, 50], [text], 'end_turn'),
+    ]),
+  );
+  const rows = fire(dir, stop(transcript));
+
+  assert.equal(rows[0].tokens, 2043);
+  assert.equal(rows[1].tokens, 2162); // msg_Q alone: 2 + 10 + 2100 + 50
+  assert.equal(rows[1].modelCalls, 1);
+  assert.equal(rows[1].toolUses, 1); // msg_P's tool call, first seen in this slice
+});

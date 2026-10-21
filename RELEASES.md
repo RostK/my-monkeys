@@ -46,8 +46,9 @@ All nine versions ever released, across all four catalog plugins:
 on `main`.
 
 The `engineering-insights` Stop hook no longer blocks the first stop of a session that changed no
-code: in a git repo it waits for a stop that follows a tracked change or a new commit, and nudges
-once then, as before. Shipped alongside `sdd-engineering` 1.2.0.
+code: in a git repo it waits until the session has written a file or made a commit since it started
+(older work-in-progress, pulls and checkouts do not count), and nudges once then, as before. Shipped
+alongside `sdd-engineering` 1.2.0.
 
 ### [1.0.0] - 2026-07-13
 

@@ -36,6 +36,9 @@
  * counted once per message id (the largest copy of each field, as a copy can be
  * written before the answer finished), and tool calls once per tool_use id
  * within that message. An entry with no message id can only count as itself.
+ * A message whose entries straddle the watermark was billed whole by the row
+ * before, so the watermark also keeps the last billed message id, and the next
+ * row counts that message's tool calls but not its usage again.
  *
  * KEYS OF ONE ROW
  *   ts · event · session · agent · agentId · model · status · stopReason ·
@@ -121,9 +124,10 @@ const USAGE_FIELDS = [
 /**
  * Roll up the usage of every assistant entry into one record, counting each
  * model call once (see ONE MODEL CALL, SEVERAL ENTRIES above).
- * `entries` is already narrowed to the slice this event is responsible for.
+ * `entries` is already narrowed to the slice this event is responsible for;
+ * `billedMsgId` is a message the previous row already billed.
  */
-function aggregate(entries) {
+function aggregate(entries, billedMsgId = null) {
   const acc = {
     inputTokens: 0,
     outputTokens: 0,
@@ -156,7 +160,7 @@ function aggregate(entries) {
     if (!msg || msg.role !== 'assistant') continue;
 
     const u = msg.usage;
-    if (u) {
+    if (u && !(billedMsgId && msg.id === billedMsgId)) {
       const key = msg.id ?? Symbol('call');
       const seen = calls.get(key) ?? {};
       for (const f of USAGE_FIELDS) seen[f] = Math.max(seen[f] ?? 0, u[f] ?? 0);
@@ -261,12 +265,15 @@ function sliceNew(entries, mark) {
  * The newest entry we can anchor to. A transcript ends with uuid-less metadata
  * records (`last-prompt`, `ai-title`); anchoring on one of those would save no
  * uuid at all and silently re-bill the whole transcript next time. Carry the
- * timestamp too, as the compaction fallback above depends on it.
+ * timestamp too, as the compaction fallback above depends on it, and the id of
+ * the last assistant message billed, so a later entry of it is not billed again.
  */
 function lastAnchor(entries) {
+  let msgId = null;
   for (let i = entries.length - 1; i >= 0; i--) {
     const e = entries[i];
-    if (e?.uuid) return { uuid: e.uuid, ts: e.timestamp ?? null };
+    if (e?.message?.role === 'assistant') msgId ??= e.message.id ?? null;
+    if (e?.uuid) return { uuid: e.uuid, ts: e.timestamp ?? null, msgId };
   }
   return null;
 }
@@ -307,7 +314,7 @@ function main() {
   const scoped = isSubagent ? all : all.filter((e) => e.isSidechain !== true);
 
   const fresh = sliceNew(scoped, mark);
-  const usage = aggregate(fresh);
+  const usage = aggregate(fresh, mark?.msgId ?? null);
 
   // agent_type can be blank on a real launch, so fall back to the transcript's
   // own attribution before giving up on a label.

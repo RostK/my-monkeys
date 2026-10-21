@@ -69,7 +69,10 @@ duration, status) to a durable per-project ledger (`retros/ledger.jsonl`). `retr
 **Capture is opt-in** (1.2.0+): the hook writes only when the project already has a `retros/` folder,
 or to wherever `SDD_TELEMETRY_LEDGER` points. Installed at user scope, the plugin therefore leaves
 projects that never asked for telemetry untouched. To turn it on: `mkdir retros` (and git-ignore
-`retros/ledger.jsonl` and `retros/.ledger-state/` — they are machine-local).
+`retros/ledger.jsonl` and `retros/.ledger-state/` — they are machine-local). The folder is looked
+for in the session's project folder, so a session started inside a git worktree is captured only if
+that checkout has `retros/` too (it does when retro reports are committed there), or when
+`SDD_TELEMETRY_LEDGER` names one shared ledger.
 
 ## Usage
 

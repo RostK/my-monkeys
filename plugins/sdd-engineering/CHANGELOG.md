@@ -106,13 +106,15 @@ are about 2–3× the real spend; the ratios between them hold.
 - **Telemetry is opt-in.** The hook writes to `SDD_TELEMETRY_LEDGER` if set, else to
   `retros/ledger.jsonl` only when the project already has a `retros/` folder, else nowhere. Before,
   a user-scope install created `retros/` in every project it ran in. Projects with a `retros/` folder
-  see no change.
+  see no change. `run-plan` intake (Phase 0 step 5) now says when telemetry is off and offers to
+  create the folder before BUILD, rather than leaving the gap for `retro` to find.
 
 ### Fixed
 - **Every token figure in the ledger was 1.9–3.0× too high.** The transcript writes one entry per
   content block of an answer, each repeating the answer's message id and whole usage, and
   `capture-telemetry.mjs` summed entry by entry. Usage is now counted once per message id (the
-  largest copy of each field) and tool calls once per tool-use id. Measured on one downstream
+  largest copy of each field) and tool calls once per tool-use id; the watermark also keeps the last
+  billed message id, so an answer whose entries straddle two rows is billed in the first only. Measured on one downstream
   session: main thread 694.3M by entry, 321.7M by message id; its subagents 1,037.1M and 442.4M.
   Rows written before this release carry no `modelCalls` key, which is how `retro` tells them apart;
   never add them to newer rows.

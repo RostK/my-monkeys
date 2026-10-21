@@ -9,10 +9,13 @@ All notable changes to **engineering-paved-path** are documented here. The forma
 ### Fixed
 - **The `engineering-insights` Stop hook no longer blocks a session that changed no code.** It used to
   block the first stop of every session — a question answered, a file read — to ask for insights
-  there could not be. In a git repo it now lets a stop through while `git diff HEAD` is empty and
-  HEAD has not moved since the session's first quiet stop, and keeps its one nudge for the first stop
-  that follows a change (a commit made since that first stop counts). Untracked files alone are not a
-  change. Outside a git repo, or if git fails, it nudges once as before.
+  there could not be. It now judges "changed" against the session's own start (the first timestamp
+  in its transcript): in a git repo, a modified or untracked file written after that start, or a
+  commit on a local branch made since it. So work committed, or committed on a branch the session
+  then left, still counts; a pull, a checkout, or work-in-progress older than the session does not.
+  The one nudge waits for the first stop that follows a change. Outside a git repo, with no readable
+  start time, or if git fails, it nudges once as before. Known limit: it cannot tell sessions apart,
+  so another session committing in the same repo meanwhile can still cause a (spare) nudge.
 - `README.md` — `sdd-engineering`'s `implementer` now *loads* its skills by name (it preloaded them
   until `sdd-engineering` 1.2.0).
 
