@@ -1,0 +1,81 @@
+schema_version: "1.1"
+name: implementer-track-defaults
+description: >-
+  The same UI unit with no skills named: the implementer falls back to the UI track's default
+  set from implementer.md "Know your track" (7 skills), and loads nothing from the backend set.
+tags: [implementer, skills, worktree]
+# sdd-engineering loads only with its three dependencies beside it.
+plugins: ["../..", "../../../engineering-paved-path", "../../../research-tools", "../../../architecture-review"]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  max_turns: 10
+  timeout_seconds: 900
+  allowed_tools: [Read, Glob, Grep, Agent, Skill, Bash, Write, Edit]
+runs: 3
+graders:
+  - name: dispatched-implementer
+    type: tool_used
+    tool: Agent
+    input_match: '"subagent_type"\s*:\s*"sdd-engineering:implementer"'
+    min: 1
+  # The UI default set, one grader per skill (implementer.md, "Know your track").
+  - name: loads-frontend-ui-architecture
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"engineering-paved-path:frontend-ui-architecture"'
+    min: 1
+  - name: loads-next-best-practices
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"engineering-paved-path:next-best-practices"'
+    min: 1
+  - name: loads-react-best-practices
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"engineering-paved-path:react-best-practices"'
+    min: 1
+  - name: loads-react-testing-library
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"engineering-paved-path:react-testing-library"'
+    min: 1
+  - name: loads-zod
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"engineering-paved-path:zod"'
+    min: 1
+  - name: loads-typescript-expert
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"engineering-paved-path:typescript-expert"'
+    min: 1
+  - name: loads-security
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"engineering-paved-path:security"'
+    min: 1
+  - name: no-backend-skills
+    type: tool_used
+    tool: Skill
+    input_match: 'onion-architecture|fastify-best-practices|drizzle-orm-patterns|postgresql-table-design'
+    min: 0
+    max: 0
+  # Only the UI defaults, plus pr-self-review, which implementer.md names as the example of
+  # a skill outside the list that the work may need.
+  - name: no-skills-outside-ui-set
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?!engineering-paved-path:(?:frontend-ui-architecture|next-best-practices|react-best-practices|react-testing-library|zod|typescript-expert|security|pr-self-review)")'
+    min: 0
+    max: 0
+  - name: unit-done-and-reported
+    type: llm
+    criteria: |
+      The reply is (or quotes) the implementer's return summary for unit T1. PASS only if all hold:
+      1. It reports the unit `done` (not `blocked`).
+      2. Its tests line shows the test run passing, and typecheck is reported clean.
+      3. Its "Skills applied" line names UI-track skills (for example
+         engineering-paved-path:frontend-ui-architecture and engineering-paved-path:react-best-practices)
+         and names no backend skill (onion-architecture, fastify-best-practices, drizzle-orm-patterns,
+         postgresql-table-design).

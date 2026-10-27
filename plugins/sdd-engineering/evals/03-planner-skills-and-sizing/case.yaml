@@ -1,0 +1,65 @@
+schema_version: "1.1"
+name: planner-skills-and-sizing
+description: >-
+  A spec mixing a UI change, a backend change and two rules in one service: the planner names
+  skills per unit to fit its track and needs, and turns the two-rule work into two units.
+tags: [planner, skills, sizing, harness]
+# sdd-engineering loads only with its three dependencies beside it.
+plugins: ["../..", "../../../engineering-paved-path", "../../../research-tools", "../../../architecture-review"]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  max_turns: 10
+  timeout_seconds: 1200
+  allowed_tools: [Read, Glob, Grep, Agent, Skill, Bash, Write]
+runs: 3
+graders:
+  - name: dispatched-planner
+    type: tool_used
+    tool: Agent
+    input_match: '"subagent_type"\s*:\s*"sdd-engineering:implementation-planner"'
+    min: 1
+  - name: plan-saved
+    type: file_exists
+    path: plans/PLAN-01-personalised-greeting.md
+  # The spec makes no schema change, so no unit has use for the table-design skill.
+  - name: no-unit-names-table-design
+    type: regex
+    target: { source: file, path: plans/PLAN-01-personalised-greeting.md }
+    pattern: 'Skills to apply[^\n]*postgresql-table-design'
+    match: not_contains
+  - name: two-rules-two-units
+    type: llm
+    focus: { source: file, path: plans/PLAN-01-personalised-greeting.md }
+    criteria: |
+      This is an implementation plan for a spec whose AC-3 (trim a display name and collapse internal
+      whitespace) and AC-4 (truncate a display name longer than 40 characters) are two rules in the
+      same file, apps/api/src/modules/greetings/service.js. PASS only if all hold:
+      1. AC-3 and AC-4 are implemented by two different task units; no single unit implements both rules.
+      2. Because those two units touch the same file, they are sequenced: one depends on the other, or
+         they sit in different parallel groups. They are not two units in one parallel group.
+  - name: skills-fit-track
+    type: llm
+    focus: { source: file, path: plans/PLAN-01-personalised-greeting.md }
+    criteria: |
+      This is an implementation plan whose task units each carry a "Skills to apply" list. The app has a
+      UI track (apps/web) and a backend track (apps/api). PASS only if all hold:
+      1. Every task unit has a "Skills to apply" list.
+      2. No unit whose files are all under apps/web names a backend skill: onion-architecture,
+         fastify-best-practices, drizzle-orm-patterns or postgresql-table-design.
+      3. No unit whose files are all under apps/api names a UI skill: frontend-ui-architecture,
+         next-best-practices, react-best-practices or react-testing-library.
+  - name: skills-only-what-unit-needs
+    type: llm
+    focus: { source: file, path: plans/PLAN-01-personalised-greeting.md }
+    criteria: |
+      This is an implementation plan for a small app. Its UI (apps/web) is framework-free view functions
+      that return HTML strings, with no React and no Next.js. Its backend (apps/api) is plain functions in
+      routes.js, service.js and repository.js. The spec makes no schema change. PASS only if no task
+      unit names a skill that has no work in that unit. Specifically, each of these fails:
+      - postgresql-table-design named on any unit;
+      - drizzle-orm-patterns named on a unit that touches no repository.js or apps/api/src/db file;
+      - fastify-best-practices named on a unit that touches no routes.js;
+      - next-best-practices, react-best-practices or react-testing-library named on any unit.
+      Structural or cross-cutting skills (onion-architecture, frontend-ui-architecture,
+      typescript-expert, zod, security, pr-self-review) never fail this check.
