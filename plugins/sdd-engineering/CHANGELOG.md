@@ -6,6 +6,32 @@ All notable changes to **sdd-engineering** are documented here. The format follo
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-30
+
+### Fixed
+- **`implementer` loads its track's whole default set when a unit names no skills.** It had been
+  judging relevance and loading none: on a framework-free UI unit it skipped the React/Next skills
+  and also the defaults that did apply (`typescript-expert`, `frontend-ui-architecture`, `zod`,
+  `security`). Skill loading is now **Step 0**, made from the brief before any project file is
+  read: one Skill call per named skill, or one per default skill when the unit names none, even
+  when some look inapplicable. The pure engine/domain backend package stays the one exception.
+  Rewording the paragraph alone fixed 3 of 6 runs; making it Step 0 fixed 9 of 9. Caught by eval
+  case 02.
+- **`implementation-planner` splits two rules into two units, however small.** Hard constraint 3
+  now states "one rule per unit" on its own, apart from the ~400k sizing budget, counts rules by the
+  spec's acceptance criteria, and no longer offers merging two same-file units as an alternative to
+  sequencing them. The planner had kept two tiny rules in one unit in 3 of 4 runs. Caught by eval
+  case 03.
+- **`evals/run-outside-harness.mjs` runs on Windows.** It now reads case files with CRLF line
+  endings (it had parsed no graders) and starts the `claude.cmd` shim through a shell.
+- **The runner no longer trips the insights Stop hook.** It ran the agent with
+  `--no-session-persistence`, which leaves the hook no transcript to date the session from, so it
+  nudged every time. The reply to that nudge replaced the answer the `llm` graders read. It also
+  prints each FAIL vote's reason now.
+- **Case 02's `unit-done-and-reported` rubric lists the whole UI set.** The judge read `zod`,
+  `typescript-expert` and `security` as non-UI skills and wanted the `engineering-paved-path:`
+  prefix, so it failed correct replies once the implementer reported all seven defaults.
+
 ### Added
 - **Behavioural eval suite** — `evals/`, six cases for the 1.2.0 instruction changes. They cover
   `implementer` skill loading (named skills, and the track defaults when none are named), the

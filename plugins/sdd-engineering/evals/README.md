@@ -30,7 +30,9 @@ claude plugin eval plugins --eval-dir sdd-engineering/evals --tag harness \
 
 - `--scaffold` runs each case's `scaffold.sh`; without it the cases have no repository.
 - `--allow-tools Bash Write Edit` grants the gated tools the cases list. A Bash grant needs the OS
-  sandbox: on Linux, `bubblewrap` and `socat`.
+  sandbox: on Linux, `bubblewrap` and `socat`. Windows has no sandbox backend, so the harness
+  refuses the Bash grant there; run case 03 with `--allow-tools Write Edit` (the planner reads
+  through Read, Glob and Grep). Cases 04–06 list Bash too and have not been tried without it.
 - `--ablation none`: the agents and skills under test exist only in the plugin, so a no-plugin
   baseline measures nothing.
 - `--judge-model sonnet`: the default judge (haiku) is less reliable on the longer artifacts,
@@ -51,8 +53,12 @@ node plugins/sdd-engineering/evals/run-outside-harness.mjs --runs 3 --judge-mode
   plugins/sdd-engineering/evals/02-implementer-track-defaults
 ```
 
-It does not sandbox the run (Bash runs as you, in the temporary directory). It skips your user
-settings and MCP servers, but not your user-level `CLAUDE.md`.
+Both paths need the `claude` CLI logged in (`claude auth status`): a session in the desktop app
+signs in through the app, which the eval children cannot use, so run `claude auth login` once.
+
+The runner does not sandbox the run (Bash runs as you, in the temporary directory). It keeps each
+run's session transcript, as the harness does, because engineering-paved-path's insights Stop hook
+needs it. It skips your user settings and MCP servers, but not your user-level `CLAUDE.md`.
 
 **Cost.** Both paths run on your normal Claude Code login and count against your plan's usage.
 Neither uses `--bare`, which would switch to API-key billing. The dollar figures they print are
