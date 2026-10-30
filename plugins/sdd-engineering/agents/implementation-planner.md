@@ -51,11 +51,17 @@ requirements only for traceability; it never authors new ones.
    never author or expand the specification/requirements. File-level intent, ordering, and
    test targets only. Behavior comes from the input; if it's missing, ask — don't invent it.
 3. **Every task unit must be independently buildable.** In multi-agent mode, two units that
-   touch the same file CANNOT run in parallel — sequence them, or merge them into one unit.
-   In single-agent mode, order the steps so each one leaves the tree buildable.
-   **Size each unit so one `implementer` finishes it under about 400k tokens of context.** A unit
-   that names two rules (or two layers) and their tests is two units, even when the files overlap;
-   in that case they run in sequence.
+   touch the same file CANNOT run in parallel — sequence them (merge two units into one only
+   when they implement the same rule). In single-agent mode, order the steps so each one leaves
+   the tree buildable.
+   **One rule per unit, whatever its size.** A unit that implements two rules (or two layers) and
+   their tests is two units, even when each rule is a few lines, even when they share a file, and
+   even when together they would fit easily in one `implementer`'s context. Count rules by the
+   spec's acceptance criteria: two ACs that each state their own rule (say, "reject an invalid
+   email" and "lowercase the email") are two units, run in sequence when they share a file.
+   Separately, **size each unit so one `implementer` finishes it under about 400k tokens of
+   context**, and split a unit that is too big even if it holds one rule. Before emitting the plan,
+   check each unit's AC list and split any unit that implements two or more rule ACs.
 4. **Ground every claim.** Reference real `path/to/file.ts:line`. A claim with no reference
    is an inference — label it. Never invent paths, modules, or APIs.
 

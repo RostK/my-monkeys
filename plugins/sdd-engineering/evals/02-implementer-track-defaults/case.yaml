@@ -75,7 +75,10 @@ graders:
       The reply is (or quotes) the implementer's return summary for unit T1. PASS only if all hold:
       1. It reports the unit `done` (not `blocked`).
       2. Its tests line shows the test run passing, and typecheck is reported clean.
-      3. Its "Skills applied" line names UI-track skills (for example
-         engineering-paved-path:frontend-ui-architecture and engineering-paved-path:react-best-practices)
-         and names no backend skill (onion-architecture, fastify-best-practices, drizzle-orm-patterns,
-         postgresql-table-design).
+      3. Its "Skills applied" line names UI-track skills and no backend skill. The UI track's set is
+         exactly these seven: frontend-ui-architecture, next-best-practices, react-best-practices,
+         react-testing-library, zod, typescript-expert and security. All seven count as UI-track,
+         including the cross-cutting zod, typescript-expert and security, and naming all seven is
+         correct. The backend skills are onion-architecture, fastify-best-practices,
+         drizzle-orm-patterns and postgresql-table-design. Names may appear with or without the
+         `engineering-paved-path:` prefix.

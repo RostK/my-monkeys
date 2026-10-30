@@ -24,7 +24,7 @@ far are on `origin`. Each affected entry below is marked **(backfilled tag)**.
 
 ## At a glance
 
-All nine versions ever released, across all four catalog plugins:
+All ten versions ever released, across all four catalog plugins:
 
 | Plugin | Version | Date | Tag | Status |
 |---|---|---|---|---|
@@ -36,7 +36,8 @@ All nine versions ever released, across all four catalog plugins:
 | `sdd-engineering` | 1.0.0 | 2026-07-13 | `sdd-engineering--v1.0.0` | tagged |
 | `sdd-engineering` | 1.1.0 | 2026-07-14 | `sdd-engineering--v1.1.0` | shipped before tagged; backfilled tag; **superseded by 1.1.1** |
 | `sdd-engineering` | 1.1.1 | 2026-07-14 | `sdd-engineering--v1.1.1` | shipped before tagged; backfilled tag |
-| `sdd-engineering` | 1.2.0 | 2026-10-21 | `sdd-engineering--v1.2.0` | tagged on merge; current |
+| `sdd-engineering` | 1.2.0 | 2026-10-21 | `sdd-engineering--v1.2.0` | tagged on merge |
+| `sdd-engineering` | 1.2.1 | 2026-10-30 | `sdd-engineering--v1.2.1` | tagged on merge; current |
 
 ## engineering-paved-path
 
@@ -90,7 +91,19 @@ citations. Declares a dependency on `engineering-paved-path` `^1.0.0`.
 
 ## sdd-engineering
 
-### [1.2.0] - 2026-10-21 — current
+### [1.2.1] - 2026-10-30 — current
+
+**Tag:** `sdd-engineering--v1.2.1` — cut by the `Tag on merge` workflow when this version lands on
+`main`.
+
+Two instruction fixes caught by the behavioural eval suite. `implementer`, given a unit that names
+no skills, now loads its track's whole default set, as Step 0 before it reads any project file,
+instead of judging relevance (it was loading none on a UI without React). `implementation-planner` now splits a unit that implements two rules
+into two units however small they are; the rule had read as part of the ~400k sizing budget. Also
+adds the eval suite (`evals/`), makes its outside-harness runner work on Windows, and fixes the
+runner and one case-02 rubric so correct replies are graded as passes.
+
+### [1.2.0] - 2026-10-21
 
 **Tag:** `sdd-engineering--v1.2.0` — cut by the `Tag on merge` workflow when this version lands on
 `main`.

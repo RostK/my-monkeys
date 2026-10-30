@@ -33,6 +33,14 @@ if (args.length === 0) {
   process.exit(2);
 }
 
+// On Windows `claude` is an npm `.cmd` shim, which Node starts only through a shell; quote
+// each argument for cmd.exe so empty and comma-separated values survive.
+const claude = (claudeArgs, options) => process.platform === 'win32'
+  ? spawnSync(['claude', ...claudeArgs.map((a) => `"${a.replace(/"/g, '""')}"`)].join(' '), { ...options, shell: true })
+  : spawnSync('claude', claudeArgs, options);
+// A Windows checkout with core.autocrlf gives the case files CRLF line endings.
+const readText = (path) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
+
 // The subset of case.yaml these cases use: `plugins` and `allowed_tools` as one-line flow
 // lists, `max_turns`, and a `graders` list of flat keys plus `criteria: |` block scalars.
 function parseCase(text) {
@@ -71,33 +79,39 @@ function judge(criteria, answer) {
     'on the first line, then one sentence of reason.\n\n<rubric>\n' + criteria +
     '\n</rubric>\n\n<reply>\n' + answer + '\n</reply>';
   const votes = [];
+  const reasons = [];
   for (let v = 0; v < 3; v++) {
-    const out = spawnSync('claude', ['-p', '--model', judgeModel, '--tools', '', '--max-turns', '1',
+    const out = claude(['-p', '--model', judgeModel, '--tools', '', '--max-turns', '1',
       '--setting-sources', 'project', '--strict-mcp-config', '--no-session-persistence'],
       { input: prompt, encoding: 'utf8', timeout: 120_000 });
-    votes.push(/^\s*PASS\b/.test(out.stdout ?? '') ? 'PASS' : 'FAIL');
+    const pass = /^\s*PASS\b/.test(out.stdout ?? '');
+    votes.push(pass ? 'PASS' : 'FAIL');
+    if (!pass) reasons.push((out.stdout ?? '').trim().replace(/^FAIL\s*/, '').replace(/\s+/g, ' ').slice(0, 300));
   }
-  return votes;
+  return { votes, reasons };
 }
 
 let failed = 0;
 for (const caseArg of args) {
   const caseDir = resolve(caseArg);
-  const spec = parseCase(readFileSync(join(caseDir, 'case.yaml'), 'utf8'));
-  const prompt = readFileSync(join(caseDir, 'prompt.md'), 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '');
+  const spec = parseCase(readText(join(caseDir, 'case.yaml')));
+  const prompt = readText(join(caseDir, 'prompt.md')).replace(/^---\n[\s\S]*?\n---\n/, '');
   for (const g of spec.graders) {
     if (g.type !== 'tool_used' && g.type !== 'llm') throw new Error(`${caseArg}: grader type ${g.type} is not supported here`);
   }
   for (let run = 1; run <= runs; run++) {
     const workspace = mkdtempSync(join(tmpdir(), 'sdd-eval-'));
     execFileSync('bash', [join(caseDir, 'scaffold.sh')], { cwd: workspace, stdio: 'inherit' });
-    const claudeArgs = ['-p', '--output-format', 'stream-json', '--verbose', '--forward-subagent-text', '--no-session-persistence',
+    // The session keeps its transcript (no --no-session-persistence): engineering-paved-path's
+    // insights Stop hook dates the session's start from it, and without one it always nudges,
+    // and the reply to that nudge replaces the answer the llm graders read.
+    const claudeArgs = ['-p', '--output-format', 'stream-json', '--verbose', '--forward-subagent-text',
       '--permission-mode', 'dontAsk', '--tools', spec.tools.join(','), '--allowedTools', spec.tools.join(','),
       '--max-turns', String(spec.maxTurns), '--max-budget-usd', budget,
       // Your own user settings (and the plugins they enable) stay out; the case names its plugins.
       '--setting-sources', 'project,local', '--strict-mcp-config',
       ...spec.plugins.flatMap((p) => ['--plugin-dir', resolve(caseDir, p)])];
-    const child = spawnSync('claude', claudeArgs, { cwd: workspace, input: prompt, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+    const child = claude(claudeArgs, { cwd: workspace, input: prompt, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
     const calls = new Map();
     let answer = '';
     let cost = null;
@@ -126,9 +140,9 @@ for (const caseArg of args) {
         ok = n >= min && n <= max;
         why = `${g.tool} called ${n}x (expected ${min}..${max === Infinity ? '∞' : max})`;
       } else {
-        const votes = judge(g.criteria, answer);
+        const { votes, reasons } = judge(g.criteria, answer);
         ok = votes.filter((v) => v === 'PASS').length >= 2;
-        why = `judge votes: ${votes.join(' ')}`;
+        why = `judge votes: ${votes.join(' ')}${reasons.map((r) => `\n      FAIL: ${r}`).join('')}`;
       }
       passed += ok ? 1 : 0;
       console.log(`  ${ok ? 'PASS' : 'FAIL'} ${g.name}: ${why}`);

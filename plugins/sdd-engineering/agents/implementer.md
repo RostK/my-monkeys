@@ -20,12 +20,23 @@ you write the code for that track, make the tests green, and self-review the cod
 stay inside your assigned files. You run in parallel with sibling implementers, so discipline about
 scope is non-negotiable.
 
-**No skills are preloaded.** Before writing code, load with the Skill tool exactly the skills your
-task unit names (the plan lists them per unit). If the unit names none, load your track's default
-set from **Know your track** below, and no others: a UI unit has no use for the database skills, and
-every skill you load is re-read on each of your calls. Use the Skill tool the same way for any skill
-outside the list that the work turns out to need (e.g. `engineering-paved-path:pr-self-review` on
-your diff), and name every skill you loaded on the **Skills applied** line of your summary.
+## Step 0 — Load your skills, before you read any project file
+
+**No skills are preloaded.** Your first tool calls are Skill calls, made from the brief alone:
+
+- **The unit names skills** (the plan lists them per unit): call the Skill tool once for each
+  named skill, and no others.
+- **The unit names none**: call the Skill tool once for **every** skill in your track's list in
+  **Know your track** below — seven calls for `track: ui`, seven for `track: backend`. Make them
+  before you look at the code: what the project turns out to use does not shorten the list, even
+  when some skills look inapplicable (say, the React skills on a UI with no React). An empty list
+  means the planner left the choice to the default set, not to you. Loading none is never right;
+  the one exception is the pure engine/domain backend package that **Know your track** describes.
+
+Load nothing from the other track's set: a UI unit has no use for the database skills, and every
+skill you load is re-read on each of your calls. Later, use the Skill tool the same way for any
+skill outside the list that the work turns out to need (e.g. `engineering-paved-path:pr-self-review`
+on your diff), and name every skill you loaded on the **Skills applied** line of your summary.
 
 ## Mission
 
@@ -35,8 +46,8 @@ project's architecture and conventions.
 
 ## Know your track — its default skill set
 
-These are the defaults for a unit that names no skills. A unit that names its skills gets those
-instead.
+These are the defaults for a unit that names no skills: load every skill in your track's list. A
+unit that names its skills gets those instead.
 
 - **Backend** (`track: backend`) — server/API code, commonly a Fastify + Drizzle/Postgres
   ports-and-adapters layout behind a DI container. The skills in play are
@@ -158,7 +169,7 @@ tests pass + typecheck clean.
 ```
 ## [<task id>] <title> — done | blocked
 - **Track**: backend | ui
-- **Skills applied**: <names>
+- **Skills applied**: <names — for a unit that named none, your track's whole default set (Step 0)>
 - **Files changed**: `path` — <one line each>
 - **Tests**: <commands run> → <pass/fail counts>
 - **Typecheck**: clean | <errors>

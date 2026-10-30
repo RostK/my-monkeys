@@ -157,6 +157,19 @@ new dated note beneath it, never rewrite. See `engineering-paved-path:engineerin
 - 2026-07-14 — `readFileSync(0, 'utf8')` returns **empty** when stdin is a Git Bash *pipe* on Windows (works fine on
   a real fd, which is what the harness gives a hook). Test a stdin-reading hook with a redirect — `node hook.mjs
   < payload.json` — not `cat payload.json | node hook.mjs`, or you will chase a phantom "payload not parsed" bug.
+- 2026-10-27 — **On Windows the eval suite cannot run from a desktop-app session as it stands.** Three separate
+  blockers: (1) the terminal `claude` CLI has its own login, and the desktop app's host auth does not reach
+  `claude -p` children or `claude plugin eval` (`claude auth status` → `loggedIn: false`, runs exit "Not logged in"),
+  so run `claude auth login` first; (2) the harness refuses any `Bash` grant ("Windows sandbox is not active ...
+  feature gate off"), so case 03 must run with `--allow-tools Write Edit`; (3) `core.autocrlf=true` checks the case
+  files out with CRLF, and Node cannot `spawnSync('claude')` the npm `claude.cmd` shim (ENOENT). The runner now
+  handles (3); check `claude auth status` before blaming a 0-score run on the agent. Evidence:
+  `evals/run-outside-harness.mjs` (`claude`, `readText`).
+- 2026-10-30 — **Never pass `--no-session-persistence` to an eval run while engineering-paved-path is loaded.**
+  The insights Stop hook dates the session from its transcript; with none, `sessionStart` is null and it nudges
+  unconditionally, and the reply to the nudge becomes the final message every `llm` grader reads, so correct runs
+  fail as "not done". Evidence: `engineering-paved-path/skills/engineering-insights/hooks/insights-capture.mjs`
+  (`start === null ? null`), `evals/run-outside-harness.mjs`.
 
 ## Recurring Errors & Fixes
 
@@ -201,6 +214,16 @@ new dated note beneath it, never rewrite. See `engineering-paved-path:engineerin
   loading and opt-in telemetry. The 2026-10-02 note's "not changed: `implementer` Step 1" is now changed — a
   learnings excerpt in the brief stands in for the insights file. The `run-plan` motivating-case token figures
   were read from pre-fix ledgers; they were left as written, with one note that they are about 2–3× the spend.
+
+- 2026-10-27 — 1.2.1: `implementer` loads the whole track default set when a unit names none (the user chose this
+  over accepting relevance judgement, to match the planner's promise), and the planner's "two rules → two units"
+  is stated apart from the ~400k budget, with "merge them into one unit" no longer offered for same-file units.
+  Eval cases 02/03 were not yet re-run when this was written (CLI not logged in, see Tool & Library Notes).
+  - 2026-10-30 — Re-run: case 03's split held 3/3. Case 02's reworded paragraph fixed only 3 of 6 runs; the
+    failing runs read the framework-free code first and then decided no skill matched. Moving skill loading to
+    **Step 0, before any project file is read** fixed 9 of 9. Lesson: to stop an agent judging relevance, make
+    the action happen before it has the evidence to judge with; stronger wording alone was a coin flip.
+    Evidence: `agents/implementer.md` (Step 0).
 
 ## Open Questions
 
